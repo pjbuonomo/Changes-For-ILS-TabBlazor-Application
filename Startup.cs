@@ -14,9 +14,15 @@ public void ConfigureServices(IServiceCollection services)
 
 
 
+{
   "ConnectionStrings": {
     "DefaultConnection": "Server=YourServer;Database=YourDatabase;User=YourUser;Password=YourPassword;"
   },
-
-
-
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}
