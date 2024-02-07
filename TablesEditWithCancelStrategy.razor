@@ -1,0 +1,88 @@
+@page "/marketquotes-with-edit"
+@using Tabler.Docs.Data // Adjust to your actual namespace
+@using TabBlazor.Components.Tables
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+
+<Row class="mb-3">
+    <RowCol Sm="12" Md="6" Lg="4">
+        <label class="form-label">Edit Mode</label>
+        <Select Items="EnumHelper.GetList<TableEditMode>()" @bind-SelectedValue="@tableEditMode" TextExpression="e => e.ToString()" />
+    </RowCol>
+</Row>
+
+<Table Item="MarketQuote" Items="marketQuotes" PageSize="10" AddItemFactory="AddItem" OnItemEdited="OnItemEdit"
+        OnItemAdded="OnItemAdd" OnItemDeleted="OnItemDelete" CancelStrategy="OnCancelStrategy.Revert"
+       ShowCheckboxes MultiSelect Hover Responsive EditMode=tableEditMode>
+    <HeaderTemplate>
+        <strong>Market Quotes</strong>
+    </HeaderTemplate>
+
+    <ChildContent>
+        <Column Item="MarketQuote" Property="e => e.QuoteDate" Title="Quote Date" Sortable Searchable>
+            <EditorTemplate>
+                <input type="date" class="form-control" @bind-value="@context.QuoteDate" />
+            </EditorTemplate>
+        </Column>
+        <Column Item="MarketQuote" Property="e => e.Broker" Title="Broker" Sortable Searchable>
+            <EditorTemplate>
+                <input type="text" class="form-control" @bind-value="@context.Broker" />
+            </EditorTemplate>
+        </Column>
+        <Column Item="MarketQuote" Property="e => e.CUSIP" Title="CUSIP" Sortable Searchable>
+            <EditorTemplate>
+                <input type="text" class="form-control" @bind-value="@context.CUSIP" />
+            </EditorTemplate>
+        </Column>
+        <Column Item="MarketQuote" Property="e => e.Price" Title="Price" Sortable Searchable>
+            <EditorTemplate>
+                <input type="number" step="0.01" class="form-control" @bind-value="@context.Price" />
+            </EditorTemplate>
+        </Column>
+    </ChildContent>
+</Table>
+
+@code {
+    private List<MarketQuote> marketQuotes = new();
+    private TableEditMode tableEditMode;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMarketQuotesAsync();
+    }
+
+    private async Task LoadMarketQuotesAsync()
+    {
+        using var dbContext = DbContextFactory.CreateDbContext();
+        marketQuotes = await dbContext.MarketQuotes.AsNoTracking().ToListAsync();
+    }
+
+    private async Task OnItemEdit(MarketQuote quote)
+    {
+        using var dbContext = DbContextFactory.CreateDbContext();
+        dbContext.MarketQuotes.Update(quote);
+        await dbContext.SaveChangesAsync();
+        await LoadMarketQuotesAsync(); // Refresh the list
+    }
+
+    private async Task OnItemAdd(MarketQuote quote)
+    {
+        using var dbContext = DbContextFactory.CreateDbContext();
+        dbContext.MarketQuotes.Add(quote);
+        await dbContext.SaveChangesAsync();
+        await LoadMarketQuotesAsync(); // Refresh the list
+    }
+
+    private async Task OnItemDelete(MarketQuote quote)
+    {
+        using var dbContext = DbContextFactory.CreateDbContext();
+        dbContext.MarketQuotes.Remove(quote);
+        await dbContext.SaveChangesAsync();
+        await LoadMarketQuotesAsync(); // Refresh the list
+    }
+
+    private Task<MarketQuote> AddItem()
+    {
+        // Provide a new MarketQuote with default values if necessary
+        return Task.FromResult(new MarketQuote { QuoteDate = DateTime.Now });
+    }
+}
