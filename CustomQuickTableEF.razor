@@ -29,7 +29,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var dbContext = Factory.CreateDbContext();
-        marketQuotes = dbContext.MarketQuotes.ToListAsync();
+        using var dbContext = Factory.CreateDbContext();
+        marketQuotes = await dbContext.MarketQuotes.ToListAsync();
     }
 }
