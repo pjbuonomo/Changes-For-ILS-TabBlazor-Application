@@ -1,8 +1,9 @@
 @page "/quick-tables-ef"
-@using Tabler.Data // Adjust if your ApplicationDbContext is in a different namespace
-@using Tabler.Models // Adjust if your MarketQuote model is in a different namespace
-@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+@using Tabler.Data // Adjust this to the namespace of your ApplicationDbContext
+@using Tabler.Models // Adjust this to the namespace of your MarketQuote model
 @using TabBlazor.Components.QuickTables
+@inject IDbContextFactory<ApplicationDbContext> Factory
+@using Microsoft.EntityFrameworkCore
 
 <style>
     .quick-table-example {
@@ -10,46 +11,26 @@
     }
 </style>
 
-@if (marketQuotes == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <QuickTable<MarketQuote> Items="marketQuotes" Class="quick-table-example">
-        <HeaderTemplate>
-            <th>Date</th>
-            <th>Broker</th>
-            <th>CUSIP</th>
-            <th>Bond</th>
-            <th>Size</th>
-            <th>Actions</th>
-            <th>Price</th>
-        </HeaderTemplate>
-        <RowTemplate For="quote">
-            <td>@quote.QuoteDate.ToShortDateString()</td>
-            <td>@quote.Broker</td>
-            <td>@quote.CUSIP</td>
-            <td>@quote.Bond</td>
-            <td>@quote.Size</td>
-            <td>@quote.Actions</td>
-            <td>@quote.Price.ToString("C")</td>
-        </RowTemplate>
+<div class="card">
+    <QuickTable Items="marketQuotes" Pagination="@pagination" Class="quick-table-example">
+        <PropertyColumn Property="@(mq => mq.QuoteDate)" Title="Date" Sortable="true"/>
+        <PropertyColumn Property="@(mq => mq.Broker)" Title="Broker" Sortable="true"/>
+        <PropertyColumn Property="@(mq => mq.CUSIP)" Title="CUSIP" Sortable="true"/>
+        <PropertyColumn Property="@(mq => mq.Bond)" Title="Bond" Sortable="true"/>
+        <PropertyColumn Property="@(mq => mq.Size)" Title="Size" Sortable="true"/>
+        <PropertyColumn Property="@(mq => mq.Actions)" Title="Actions" Sortable="true"/>
+        <PropertyColumn Property="@(mq => mq.Price)" Title="Price" Sortable="true"/>
     </QuickTable>
-}
+    <Paginator Value="@pagination"/>
+</div>
 
 @code {
+    private PaginationState pagination = new PaginationState { ItemsPerPage = 15 };
     private List<MarketQuote>? marketQuotes;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadMarketQuotesAsync();
-    }
-
-    private async Task LoadMarketQuotesAsync()
-    {
-        await using var dbContext = ContextFactory.CreateDbContext();
+        var dbContext = Factory.CreateDbContext();
         marketQuotes = await dbContext.MarketQuotes.ToListAsync();
     }
 }
-
