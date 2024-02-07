@@ -1,6 +1,5 @@
 @page "/quick-tables-ef"
-@using Tabler.Data // Adjust this to the namespace of your ApplicationDbContext
-@using Tabler.Models // Adjust this to the namespace of your MarketQuote model
+@using Tabler.Docs.Data // Adjust if your ApplicationDbContext is in a different namespace
 @using TabBlazor.Components.QuickTables
 @inject IDbContextFactory<ApplicationDbContext> Factory
 @using Microsoft.EntityFrameworkCore
@@ -13,15 +12,15 @@
 
 <div class="card">
     <QuickTable Items="marketQuotes" Pagination="@pagination" Class="quick-table-example">
-        <PropertyColumn Property="@(mq => mq.QuoteDate)" Title="Date" Sortable="true"/>
-        <PropertyColumn Property="@(mq => mq.Broker)" Title="Broker" Sortable="true"/>
-        <PropertyColumn Property="@(mq => mq.CUSIP)" Title="CUSIP" Sortable="true"/>
-        <PropertyColumn Property="@(mq => mq.Bond)" Title="Bond" Sortable="true"/>
-        <PropertyColumn Property="@(mq => mq.Size)" Title="Size" Sortable="true"/>
-        <PropertyColumn Property="@(mq => mq.Actions)" Title="Actions" Sortable="true"/>
-        <PropertyColumn Property="@(mq => mq.Price)" Title="Price" Sortable="true"/>
+        <PropertyColumn Property="@(mq => mq.QuoteDate)" Title="Date" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Broker)" Title="Broker" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.CUSIP)" Title="CUSIP" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Bond)" Title="Bond" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Size)" Title="Size" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Actions)" Title="Actions" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Price)" Title="Price" Sortable="true" />
     </QuickTable>
-    <Paginator Value="@pagination"/>
+    <Paginator Value="@pagination" />
 </div>
 
 @code {
@@ -31,33 +30,6 @@
     protected override async Task OnInitializedAsync()
     {
         var dbContext = Factory.CreateDbContext();
-        marketQuotes = await dbContext.MarketQuotes.ToListAsync();
-    }
-}
-
-
-
-
-
-using Microsoft.EntityFrameworkCore;
-using Tabler.Docs.Data;
-
-public class ApplicationDbContext : DbContext
-{
-    public DbSet<Country> Countries { get; set; } = default!;
-    public DbSet<MarketQuote> MarketQuotes { get; set; } = default!; // Add this line
-
-    public ApplicationDbContext(DbContextOptions options) : base(options)
-    {
-    }
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        base.OnModelCreating(modelBuilder);
-
-        modelBuilder.Entity<Country>().HasKey(x => x.Code);
-        modelBuilder.Entity<Country>().OwnsOne(x => x.Medals);
-
-        // If you need to configure anything specific for MarketQuote, you can do it here.
+        marketQuotes = dbContext.MarketQuotes.ToListAsync();
     }
 }
