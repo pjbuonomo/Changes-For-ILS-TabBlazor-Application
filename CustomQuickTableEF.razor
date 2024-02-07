@@ -1,0 +1,55 @@
+@page "/quick-tables-ef"
+@using Tabler.Data // Adjust if your ApplicationDbContext is in a different namespace
+@using Tabler.Models // Adjust if your MarketQuote model is in a different namespace
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+@using TabBlazor.Components.QuickTables
+
+<style>
+    .quick-table-example {
+        height: 300px;
+    }
+</style>
+
+@if (marketQuotes == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <QuickTable<MarketQuote> Items="marketQuotes" Class="quick-table-example">
+        <HeaderTemplate>
+            <th>Date</th>
+            <th>Broker</th>
+            <th>CUSIP</th>
+            <th>Bond</th>
+            <th>Size</th>
+            <th>Actions</th>
+            <th>Price</th>
+        </HeaderTemplate>
+        <RowTemplate For="quote">
+            <td>@quote.QuoteDate.ToShortDateString()</td>
+            <td>@quote.Broker</td>
+            <td>@quote.CUSIP</td>
+            <td>@quote.Bond</td>
+            <td>@quote.Size</td>
+            <td>@quote.Actions</td>
+            <td>@quote.Price.ToString("C")</td>
+        </RowTemplate>
+    </QuickTable>
+}
+
+@code {
+    private List<MarketQuote>? marketQuotes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMarketQuotesAsync();
+    }
+
+    private async Task LoadMarketQuotesAsync()
+    {
+        await using var dbContext = ContextFactory.CreateDbContext();
+        marketQuotes = await dbContext.MarketQuotes.ToListAsync();
+    }
+}
+
