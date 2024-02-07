@@ -1,0 +1,35 @@
+@page "/quick-tables-ef"
+@using Tabler.Docs.Data
+@using Microsoft.EntityFrameworkCore
+@using TabBlazor.Components.QuickTables
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+
+<style>
+    .quick-table-example {
+        height: 300px;
+    }
+</style>
+
+<div class="card">
+    <QuickTable Items="@GetMarketQuotes()" Pagination="@pagination" Class="quick-table-example">
+        <PropertyColumn Property="@(mq => mq.QuoteDate)" Title="Date" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Broker)" Title="Broker" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.CUSIP)" Title="CUSIP" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Bond)" Title="Bond" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Size)" Title="Size" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Actions)" Title="Actions" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Price)" Title="Price" Sortable="true" />
+    </QuickTable>
+    <Paginator Value="@pagination" />
+</div>
+
+@code {
+    private PaginationState pagination = new PaginationState { ItemsPerPage = 15 };
+
+    // This method returns an IQueryable<MarketQuote> for QuickTable to consume directly
+    private IQueryable<MarketQuote> GetMarketQuotes()
+    {
+        var dbContext = DbContextFactory.CreateDbContext();
+        return dbContext.MarketQuotes;
+    }
+}
