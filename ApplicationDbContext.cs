@@ -14,9 +14,11 @@ public class ApplicationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+
         modelBuilder.Entity<Country>().HasKey(x => x.Code);
         modelBuilder.Entity<Country>().OwnsOne(x => x.Medals);
 
         // If you need to configure anything specific for MarketQuote, you can do it here.
+        modelBuilder.Entity<MarketQuote>().HasKey(mq => mq.id);
     }
 }
