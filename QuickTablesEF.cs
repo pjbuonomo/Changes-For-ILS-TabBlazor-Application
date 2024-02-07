@@ -51,3 +51,61 @@ Error	CS0103	The name 'DbContextFactory' does not exist in the current context	T
         marketQuotes = await dbContext.MarketQuotes.ToListAsync();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@page "/docs/quick-tables"
+@using TabBlazor.Components.QuickTables
+<style type="text/css">
+    .quick-table-example {
+        height: 300px;
+    }
+</style>
+<Page>
+    <DocsExample Title="Table" ComponentType="typeof(QuickTable<>)">
+         <CodeSnippet SetBackground ClassName="@typeof(QuickTablesEF).ToString()" Title="Entity Framework">
+             <Example>
+                 <QuickTablesEF></QuickTablesEF>
+             </Example>
+         </CodeSnippet>
+     </DocsExample>
+ </Page>
