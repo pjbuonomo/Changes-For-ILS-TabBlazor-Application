@@ -1,1 +1,89 @@
+@page "/excel-upload-with-options"
+@using Microsoft.AspNetCore.Components.Forms
+@using OfficeOpenXml
+@using System.Data
+@using System.IO
+@using System.Linq
 
+<EditForm>
+    <div class="mb-3">
+        <label for="processingOption" class="form-label">Select Processing Option:</label>
+        <InputSelect id="processingOption" @bind-Value="selectedOption">
+            <option value="">Select an option</option>
+            <option value="Swiss">Swiss</option>
+            <option value="Aon">Aon</option>
+            <option value="BH">BH</option>
+        </InputSelect>
+    </div>
+    <div>
+        <InputFile OnChange="HandleFileUpload" disabled="@string.IsNullOrEmpty(selectedOption)" />
+    </div>
+</EditForm>
+
+@if (dataTable != null)
+{
+    <table class="table mt-3">
+        <thead>
+            <tr>
+                @foreach (DataColumn col in dataTable.Columns)
+                {
+                    <th>@col.ColumnName</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (DataRow row in dataTable.Rows)
+            {
+                <tr>
+                    @foreach (var cell in row.ItemArray)
+                    {
+                        <td>@cell</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private string selectedOption = string.Empty;
+    private DataTable? dataTable;
+
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null && Path.GetExtension(file.Name).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Set according to your use case
+            using var memoryStream = new MemoryStream();
+            await file.OpenReadStream().CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+
+            using var package = new ExcelPackage(memoryStream);
+            var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
+            dataTable = ProcessExcelFile(worksheet);
+        }
+    }
+
+    private DataTable ProcessExcelFile(ExcelWorksheet worksheet)
+    {
+        int startRow = 1;
+        switch (selectedOption)
+        {
+            case "Swiss":
+                startRow = 13; // Skip the first 12 rows
+                break;
+            case "Aon":
+                // Define specific logic for Aon
+                break;
+            case "BH":
+                // Define specific logic for BH
+                break;
+        }
+
+        return worksheet.Cells[startRow, 1, worksheet.Dimension.End.Row, worksheet.Dimension.End.Column].ToDataTable(options =>
+        {
+            options.FirstRowIsColumnNames = true;
+        });
+    }
+}
