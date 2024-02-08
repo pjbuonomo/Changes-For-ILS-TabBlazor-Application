@@ -1,89 +1,91 @@
-@page "/excel-upload-with-options"
+@page "/excel-upload"
 @using Microsoft.AspNetCore.Components.Forms
 @using OfficeOpenXml
 @using System.Data
 @using System.IO
-@using System.Linq
 
-<EditForm>
-    <div class="mb-3">
-        <label for="processingOption" class="form-label">Select Processing Option:</label>
-        <InputSelect id="processingOption" @bind-Value="selectedOption">
-            <option value="">Select an option</option>
-            <option value="Swiss">Swiss</option>
-            <option value="Aon">Aon</option>
-            <option value="BH">BH</option>
-        </InputSelect>
-    </div>
-    <div>
-        <InputFile OnChange="HandleFileUpload" disabled="@string.IsNullOrEmpty(selectedOption)" />
-    </div>
-</EditForm>
+<select @bind="selectedOption">
+    <option value="">Please select...</option>
+    <option value="Swiss">Swiss</option>
+    <option value="Aon">Aon</option>
+    <option value="BH">BH</option>
+</select>
 
-@if (dataTable != null)
+<InputFile OnChange="HandleFileUpload" disabled="@string.IsNullOrEmpty(selectedOption)" />
+@if (!string.IsNullOrEmpty(errorMessage))
 {
-    <table class="table mt-3">
-        <thead>
-            <tr>
-                @foreach (DataColumn col in dataTable.Columns)
-                {
-                    <th>@col.ColumnName</th>
-                }
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (DataRow row in dataTable.Rows)
-            {
-                <tr>
-                    @foreach (var cell in row.ItemArray)
-                    {
-                        <td>@cell</td>
-                    }
-                </tr>
-            }
-        </tbody>
-    </table>
+    <div class="alert alert-danger" role="alert">
+        @errorMessage
+    </div>
 }
 
 @code {
-    private string selectedOption = string.Empty;
-    private DataTable? dataTable;
+    private string selectedOption = "";
+    private string errorMessage = "";
 
     private async Task HandleFileUpload(InputFileChangeEventArgs e)
     {
-        var file = e.File;
-        if (file != null && Path.GetExtension(file.Name).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(selectedOption))
         {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Set according to your use case
-            using var memoryStream = new MemoryStream();
-            await file.OpenReadStream().CopyToAsync(memoryStream);
-            memoryStream.Position = 0;
+            errorMessage = "Please select an appropriate format before uploading.";
+            return;
+        }
 
-            using var package = new ExcelPackage(memoryStream);
-            var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
-            dataTable = ProcessExcelFile(worksheet);
+        var file = e.File;
+        if (file != null)
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            using var stream = new MemoryStream();
+            await file.OpenReadStream().CopyToAsync(stream);
+            stream.Position = 0;
+
+            using var package = new ExcelPackage(stream);
+            var worksheet = package.Workbook.Worksheets[0];
+
+            DataTable dataTable;
+            try
+            {
+                if (selectedOption == "Swiss")
+                {
+                    // For the "Swiss" option, you might adjust the reading logic here, for example:
+                    dataTable = ReadWorksheetToDataTable(worksheet, 12); // Custom method to handle specifics
+                }
+                else
+                {
+                    // Default reading without skipping rows
+                    dataTable = ReadWorksheetToDataTable(worksheet);
+                }
+
+                // Process dataTable as needed...
+
+                errorMessage = "";
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"An error occurred: {ex.Message}";
+            }
         }
     }
 
-    private DataTable ProcessExcelFile(ExcelWorksheet worksheet)
+    private DataTable ReadWorksheetToDataTable(ExcelWorksheet worksheet, int skipRows = 0)
     {
-        int startRow = 1;
-        switch (selectedOption)
+        DataTable table = new DataTable();
+        foreach (var firstRowCell in worksheet.Cells[1 + skipRows, 1, 1 + skipRows, worksheet.Dimension.End.Column])
         {
-            case "Swiss":
-                startRow = 13; // Skip the first 12 rows
-                break;
-            case "Aon":
-                // Define specific logic for Aon
-                break;
-            case "BH":
-                // Define specific logic for BH
-                break;
+            table.Columns.Add(firstRowCell.Text);
         }
 
-        return worksheet.Cells[startRow, 1, worksheet.Dimension.End.Row, worksheet.Dimension.End.Column].ToDataTable(options =>
+        for (var rowNumber = 2 + skipRows; rowNumber <= worksheet.Dimension.End.Row; rowNumber++)
         {
-            options.FirstRowIsColumnNames = true;
-        });
+            var row = worksheet.Cells[rowNumber, 1, rowNumber, worksheet.Dimension.End.Column];
+            var newRow = table.NewRow();
+            foreach (var cell in row)
+            {
+                newRow[cell.Start.Column - 1] = cell.Text;
+            }
+            table.Rows.Add(newRow);
+        }
+
+        return table;
     }
 }
