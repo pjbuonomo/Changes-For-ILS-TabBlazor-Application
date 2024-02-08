@@ -27,45 +27,51 @@
     private string errorMessage = "";
 
     private async Task HandleFileUpload(InputFileChangeEventArgs e)
+{
+    if (string.IsNullOrEmpty(selectedOption))
     {
-        if (string.IsNullOrEmpty(selectedOption))
-        {
-            errorMessage = "Please select an appropriate format before uploading.";
-            return;
-        }
+        errorMessage = "Please select an appropriate format before uploading.";
+        return;
+    }
 
-        var file = e.File;
-        if (file != null)
-        {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-            using var stream = new MemoryStream();
-            await file.OpenReadStream().CopyToAsync(stream);
-            stream.Position = 0;
+    var file = e.File;
+    if (file != null)
+    {
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using var stream = new MemoryStream();
+        await file.OpenReadStream().CopyToAsync(stream);
+        stream.Position = 0;
 
-            using (var package = new ExcelPackage(stream))
+        using var package = new ExcelPackage(stream);
+        var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
+
+        try
+        {
+            // Initialize the options for ToDataTable
+            var options = new ExcelToDataTableOptions()
             {
-                var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
+                // Set your options here
+            };
 
-                try
-                {
-                    // Apply specific logic based on the selected option
-                    DataTable dataTable = null;
-                    if (selectedOption == "Swiss")
-                    {
-                        dataTable = worksheet.Cells[worksheet.Dimension.Address].ToDataTable(new ExcelToDataTableOptions() { SkipNumberOfRowsStart = 12 });
-                        // Further processing specific to "Swiss" option...
-                    }
-                    // Implement similar branches for "Aon" and "BH" with their respective logics
-
-                    // Reset the error message if successful
-                    errorMessage = "";
-                }
-                catch (InvalidOperationException ex)
-                {
-                    // Handle specific errors, e.g., first row contains an empty cell
-                    errorMessage = "An error occurred: " + ex.Message;
-                }
+            if (selectedOption == "Swiss")
+            {
+                // Customize options based on selection
+                options.SkipNumberOfRowsStart = 12; // This is how you correctly set the option
             }
+
+            // Use the options in the ToDataTable method
+            DataTable dataTable = worksheet.Cells[worksheet.Dimension.Address].ToDataTable(options);
+            // Further processing specific to selected option...
+
+            // Reset the error message if successful
+            errorMessage = "";
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Handle specific errors, e.g., first row contains an empty cell
+            errorMessage = "An error occurred: " + ex.Message;
         }
     }
+}
+
 }
