@@ -1,0 +1,77 @@
+@page "/excel-upload"
+@using Microsoft.AspNetCore.Components.Forms
+@using OfficeOpenXml
+@using System.Data
+@using System.IO
+@using Microsoft.AspNetCore.Components.Forms
+@using OfficeOpenXml
+@using System.Data
+
+<select @bind="selectedOption">
+    <option value="">Please select...</option>
+    <option value="Swiss">Swiss</option>
+    <option value="Aon">Aon</option>
+    <option value="BH">BH</option>
+</select>
+
+<InputFile OnChange="HandleFileUpload" disabled="@string.IsNullOrEmpty(selectedOption)" />
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">
+        @errorMessage
+    </div>
+}
+
+@code {
+    private string selectedOption = "";
+    private string errorMessage = "";
+
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+{
+    if (string.IsNullOrEmpty(selectedOption))
+    {
+        errorMessage = "Please select an appropriate format before uploading.";
+        return;
+    }
+
+    var file = e.File;
+    if (file != null)
+    {
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using var stream = new MemoryStream();
+        await file.OpenReadStream().CopyToAsync(stream);
+        stream.Position = 0;
+
+        using var package = new ExcelPackage(stream);
+        var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
+
+        try
+        {
+            // Initialize the options for ToDataTable
+            var options = new ExcelToDataTableOptions()
+            {
+                // Set your options here
+            };
+
+            if (selectedOption == "Swiss")
+            {
+                // Customize options based on selection
+                options.SkipNumberOfRowsStart = 12; // This is how you correctly set the option
+            }
+
+            // Use the options in the ToDataTable method
+            DataTable dataTable = worksheet.Cells[worksheet.Dimension.Address].ToDataTable(options);
+            // Further processing specific to selected option...
+
+            // Reset the error message if successful
+            errorMessage = "";
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Handle specific errors, e.g., first row contains an empty cell
+            errorMessage = "An error occurred: " + ex.Message;
+        }
+    }
+}
+
+}
