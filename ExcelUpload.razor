@@ -37,11 +37,19 @@
         var file = e.File;
         if (file != null && Path.GetExtension(file.Name).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
         {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Set license context according to your use case
-            using var stream = file.OpenReadStream();
-            using var package = new ExcelPackage(stream);
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Set license context as needed
+            
+            // Read the uploaded file into a MemoryStream asynchronously
+            using var memoryStream = new MemoryStream();
+            await file.OpenReadStream().CopyToAsync(memoryStream);
+            
+            // Ensure the stream position is set to the beginning before reading
+            memoryStream.Position = 0;
+    
+            using var package = new ExcelPackage(memoryStream);
             var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
             dataTable = worksheet.Cells[worksheet.Dimension.Address].ToDataTable();
         }
     }
+
 }
