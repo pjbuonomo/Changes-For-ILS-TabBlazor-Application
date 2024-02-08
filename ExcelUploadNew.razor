@@ -3,75 +3,43 @@
 @using OfficeOpenXml
 @using System.Data
 @using System.IO
-@using Microsoft.AspNetCore.Components.Forms
-@using OfficeOpenXml
-@using System.Data
 
-<select @bind="selectedOption">
-    <option value="">Please select...</option>
-    <option value="Swiss">Swiss</option>
-    <option value="Aon">Aon</option>
-    <option value="BH">BH</option>
-</select>
 
-<InputFile OnChange="HandleFileUpload" disabled="@string.IsNullOrEmpty(selectedOption)" />
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-    <div class="alert alert-danger" role="alert">
-        @errorMessage
-    </div>
-}
 
 @code {
-    private string selectedOption = "";
-    private string errorMessage = "";
-
-    private async Task HandleFileUpload(InputFileChangeEventArgs e)
-{
-    if (string.IsNullOrEmpty(selectedOption))
+public class ExcelUtility
     {
-        errorMessage = "Please select an appropriate format before uploading.";
-        return;
-    }
-
-    var file = e.File;
-    if (file != null)
-    {
-        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-        using var stream = new MemoryStream();
-        await file.OpenReadStream().CopyToAsync(stream);
-        stream.Position = 0;
-
-        using var package = new ExcelPackage(stream);
-        var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
-
-        try
+        public static DataTable ExcelDataToDataTable(string filePath, string sheetName, bool hasHeader = true)
         {
-            // Initialize the options for ToDataTable
-            var options = new ExcelToDataTableOptions()
+            var dt = new DataTable();
+            var fi = new FileInfo(filePath);
+            // Check if the file exists
+            if (!fi.Exists)
+                throw new Exception("File " + filePath + " Does Not Exists");
+
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            var xlPackage = new ExcelPackage(fi);
+            // get the first worksheet in the workbook
+            var worksheet = xlPackage.Workbook.Worksheets[sheetName];
+
+            dt = worksheet.Cells[1, 1, worksheet.Dimension.End.Row, worksheet.Dimension.End.Column].ToDataTable(c =>
             {
-                // Set your options here
-            };
+                c.FirstRowIsColumnNames = true;
+            });
 
-            if (selectedOption == "Swiss")
-            {
-                // Customize options based on selection
-                options.SkipNumberOfRowsStart = 12; // This is how you correctly set the option
-            }
-
-            // Use the options in the ToDataTable method
-            DataTable dataTable = worksheet.Cells[worksheet.Dimension.Address].ToDataTable(options);
-            // Further processing specific to selected option...
-
-            // Reset the error message if successful
-            errorMessage = "";
-        }
-        catch (InvalidOperationException ex)
-        {
-            // Handle specific errors, e.g., first row contains an empty cell
-            errorMessage = "An error occurred: " + ex.Message;
+            return dt;
         }
     }
-}
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var path = @"C:\Users\XXX\ExcelFile.xlsx";
+            var data = ExcelUtility.ExcelDataToDataTable(path, "Sheet1");
+        }
+    }
 
-}
+
+            However based on these options we need to apply certain ExcelToDataTableOptions such as for Swiss we skip the first 12 rows.
+
+    https://www.c-sharpcorner.com/article/c-sharp-convert-excel-to-datatable/
