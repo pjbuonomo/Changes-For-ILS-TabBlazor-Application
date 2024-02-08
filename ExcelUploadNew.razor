@@ -1,0 +1,65 @@
+@page "/upload-excel"
+@using Microsoft.AspNetCore.Components.Forms
+@using OfficeOpenXml
+@using System.Data
+
+<Select @bind-Value="selectedOption">
+    <option value="">Please select...</option>
+    <option value="Swiss">Swiss</option>
+    <option value="Aon">Aon</option>
+    <option value="BH">BH</option>
+</Select>
+
+<InputFile OnChange="HandleFileUpload" disabled="@string.IsNullOrEmpty(selectedOption)" />
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">
+        @errorMessage
+    </div>
+}
+
+@code {
+    private string selectedOption = "";
+    private string errorMessage = "";
+
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        if (string.IsNullOrEmpty(selectedOption))
+        {
+            errorMessage = "Please select an appropriate format before uploading.";
+            return;
+        }
+
+        var file = e.File;
+        if (file != null)
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            using var stream = new MemoryStream();
+            await file.OpenReadStream().CopyToAsync(stream);
+            stream.Position = 0;
+
+            using var package = new ExcelPackage(stream);
+            var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
+
+            try
+            {
+                // Apply specific logic based on the selected option
+                DataTable dataTable = null;
+                if (selectedOption == "Swiss")
+                {
+                    dataTable = worksheet.Cells[worksheet.Dimension.Address].ToDataTable(new ExcelToDataTableOptions() { SkipNumberOfRowsStart = 12 });
+                    // Further processing specific to "Swiss" option...
+                }
+                // Implement similar branches for "Aon" and "BH" with their respective logics
+
+                // Reset the error message if successful
+                errorMessage = "";
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Handle specific errors, e.g., first row contains an empty cell
+                errorMessage = "An error occurred: " + ex.Message;
+            }
+        }
+    }
+}
