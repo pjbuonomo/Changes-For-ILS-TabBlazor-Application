@@ -42,27 +42,29 @@
             await file.OpenReadStream().CopyToAsync(stream);
             stream.Position = 0;
 
-            using var package = new ExcelPackage(stream);
-            var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
-
-            try
+            using (var package = new ExcelPackage(stream))
             {
-                // Apply specific logic based on the selected option
-                DataTable dataTable = null;
-                if (selectedOption == "Swiss")
+                var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
+
+                try
                 {
-                    dataTable = worksheet.Cells[worksheet.Dimension.Address].ToDataTable(new ExcelPackage() { SkipNumberOfRowsStart = 12 });
-                    // Further processing specific to "Swiss" option...
-                }
-                // Implement similar branches for "Aon" and "BH" with their respective logics
+                    // Apply specific logic based on the selected option
+                    DataTable dataTable = null;
+                    if (selectedOption == "Swiss")
+                    {
+                        dataTable = worksheet.Cells[worksheet.Dimension.Address].ToDataTable(new ExcelToDataTableOptions() { SkipNumberOfRowsStart = 12 });
+                        // Further processing specific to "Swiss" option...
+                    }
+                    // Implement similar branches for "Aon" and "BH" with their respective logics
 
-                // Reset the error message if successful
-                errorMessage = "";
-            }
-            catch (InvalidOperationException ex)
-            {
-                // Handle specific errors, e.g., first row contains an empty cell
-                errorMessage = "An error occurred: " + ex.Message;
+                    // Reset the error message if successful
+                    errorMessage = "";
+                }
+                catch (InvalidOperationException ex)
+                {
+                    // Handle specific errors, e.g., first row contains an empty cell
+                    errorMessage = "An error occurred: " + ex.Message;
+                }
             }
         }
     }
