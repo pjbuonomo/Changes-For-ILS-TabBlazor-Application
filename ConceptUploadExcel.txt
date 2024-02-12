@@ -11,3 +11,9 @@ Is it possible for us to have the functionality that when a file is chosen or dr
 The goal would be to be able to upload multiple Excel files process and store the data depending on its processing type. And then when you click on a button with a magnifying glass it displays a modal with a preview of the data.
 
 
+https://codepen.io/enrico-tan/pen/vYNLLde
+https://bootstrapfriendly.com/blog/live-preview/uploading-multiple-files-with-progress-bar-via-ajax-and-php
+https://colorlib.com/wp/bootstrap-file-uploads/
+https://codepen.io/aaronvanston/full/yNYOXR
+https://codepen.io/suryansh54/full/pNyRjX
+https://codepen.io/abhijitdarji/pen/dMVoaX
