@@ -1,27 +1,31 @@
-@page "/excel-upload-with-options"
+@page "/excel-upload"
 @using Microsoft.AspNetCore.Components.Forms
 @using OfficeOpenXml
 @using System.Data
 @using System.IO
 @using System.Linq
 
-<EditForm>
-    <div class="mb-3">
-        <label for="processingOption" class="form-label">Select Processing Option:</label>
-        <InputSelect id="processingOption" @bind-Value="selectedOption">
-            <option value="">Select an option</option>
-            <option value="Swiss">Swiss</option>
-            <option value="Aon">Aon</option>
-            <option value="BH">BH</option>
-        </InputSelect>
-    </div>
-    <div>
-        <InputFile OnChange="HandleFileUpload" disabled="@string.IsNullOrEmpty(selectedOption)" />
-    </div>
-</EditForm>
+<div class="mb-3">
+    <label for="processingOption" class="form-label">Select Processing Option:</label>
+    <InputSelect id="processingOption" @bind-Value="selectedOption">
+        <option value="">Select an option</option>
+        <option value="Swiss">Swiss</option>
+        <option value="Aon">Aon</option>
+        <option value="BH">BH</option>
+    </InputSelect>
+</div>
+
+<div>
+    <InputFile OnChange="HandleFileSelected" disabled="@string.IsNullOrEmpty(selectedOption)" />
+    @if (fileStream != null)
+    {
+        <button class="btn btn-primary mt-2" @onclick="ProcessFile">Process</button>
+    }
+</div>
 
 @if (dataTable != null)
 {
+    <div class="card">
     <table class="table mt-3">
         <thead>
             <tr>
@@ -43,47 +47,46 @@
             }
         </tbody>
     </table>
+    </div>
 }
 
 @code {
     private string selectedOption = string.Empty;
     private DataTable? dataTable;
+    private MemoryStream? fileStream;
 
-    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
         var file = e.File;
         if (file != null && Path.GetExtension(file.Name).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
         {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Set according to your use case
-            using var memoryStream = new MemoryStream();
-            await file.OpenReadStream().CopyToAsync(memoryStream);
-            memoryStream.Position = 0;
-
-            using var package = new ExcelPackage(memoryStream);
-            var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
-            dataTable = ProcessExcelFile(worksheet);
+            fileStream = new MemoryStream();
+            await file.OpenReadStream().CopyToAsync(fileStream);
+        }
+        else
+        {
+            fileStream = null; // Ensure fileStream is null if no or invalid file is selected
         }
     }
 
-    private DataTable ProcessExcelFile(ExcelWorksheet worksheet)
+    private async Task ProcessFile()
     {
-        int startRow = 1;
-        switch (selectedOption)
+        if (fileStream != null && !string.IsNullOrEmpty(selectedOption))
         {
-            case "Swiss":
-                startRow = 13; // Skip the first 12 rows
-                break;
-            case "Aon":
-                // Define specific logic for Aon
-                break;
-            case "BH":
-                // Define specific logic for BH
-                break;
-        }
+            fileStream.Position = 0; // Reset stream position to beginning
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Set according to your use case
+            using var package = new ExcelPackage(fileStream);
+            var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
 
-        return worksheet.Cells[startRow, 1, worksheet.Dimension.End.Row, worksheet.Dimension.End.Column].ToDataTable(options =>
-        {
-            options.FirstRowIsColumnNames = true;
-        });
+            // Adjust processing based on the selected option
+            int startRow = selectedOption == "Swiss" ? 13 : 1; // Example for 'Swiss', skipping 12 rows
+            dataTable = worksheet.Cells[startRow, 1, worksheet.Dimension.End.Row, worksheet.Dimension.End.Column].ToDataTable(options =>
+            {
+                options.FirstRowIsColumnNames = true;
+            });
+
+            fileStream.Dispose(); // Clean up the MemoryStream
+            fileStream = null; // Reset the stream reference to null after processing
+        }
     }
 }
