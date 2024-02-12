@@ -1,0 +1,92 @@
+@page "/excel-upload"
+@using Microsoft.AspNetCore.Components.Forms
+@using OfficeOpenXml
+@using System.Data
+@using System.IO
+@using System.Linq
+
+<div class="mb-3">
+    <label for="processingOption" class="form-label">Select Processing Option:</label>
+    <InputSelect id="processingOption" @bind-Value="selectedOption">
+        <option value="">Select an option</option>
+        <option value="Swiss">Swiss</option>
+        <option value="Aon">Aon</option>
+        <option value="BH">BH</option>
+    </InputSelect>
+</div>
+
+<div>
+    <InputFile OnChange="HandleFileSelected" disabled="@string.IsNullOrEmpty(selectedOption)" />
+    @if (fileStream != null)
+    {
+        <button class="btn btn-primary mt-2" @onclick="ProcessFile">Process</button>
+    }
+</div>
+
+@if (dataTable != null)
+{
+    <div class="card">
+    <table class="table mt-3">
+        <thead>
+            <tr>
+                @foreach (DataColumn col in dataTable.Columns)
+                {
+                    <th>@col.ColumnName</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (DataRow row in dataTable.Rows)
+            {
+                <tr>
+                    @foreach (var cell in row.ItemArray)
+                    {
+                        <td>@cell</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+}
+
+@code {
+    private string selectedOption = string.Empty;
+    private DataTable? dataTable;
+    private MemoryStream? fileStream;
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null && Path.GetExtension(file.Name).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            fileStream = new MemoryStream();
+            await file.OpenReadStream().CopyToAsync(fileStream);
+        }
+        else
+        {
+            fileStream = null; // Ensure fileStream is null if no or invalid file is selected
+        }
+    }
+
+    private async Task ProcessFile()
+    {
+        if (fileStream != null && !string.IsNullOrEmpty(selectedOption))
+        {
+            fileStream.Position = 0; // Reset stream position to beginning
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Set according to your use case
+            using var package = new ExcelPackage(fileStream);
+            var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
+
+            // Adjust processing based on the selected option
+            int startRow = selectedOption == "Swiss" ? 13 : 1; // Example for 'Swiss', skipping 12 rows
+            dataTable = worksheet.Cells[startRow, 1, worksheet.Dimension.End.Row, worksheet.Dimension.End.Column].ToDataTable(options =>
+            {
+                options.FirstRowIsColumnNames = true;
+            });
+
+            fileStream.Dispose(); // Clean up the MemoryStream
+            fileStream = null; // Reset the stream reference to null after processing
+        }
+    }
+}
