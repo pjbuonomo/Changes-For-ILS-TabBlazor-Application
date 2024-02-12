@@ -1,0 +1,13 @@
+How can I change the appearance of this to be like a box with a file icon in the middle with a label that says 
+
+Drag files here to upload them.
+
+or choose your files.
+
+
+Is it possible for us to have the functionality that when a file is chosen or drag and dropped into the upload box it displays a loading bar while it processes the kind of processing type it is and then displays it in a Queue column off to the write with the file name and then Upload Process next to it.
+
+
+The goal would be to be able to upload multiple Excel files process and store the data depending on its processing type. And then when you click on a button with a magnifying glass it displays a modal with a preview of the data.
+
+
