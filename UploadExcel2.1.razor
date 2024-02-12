@@ -5,86 +5,129 @@
 @using System.IO
 @using System.Linq
 
-<div class="mb-3">
-    <label for="processingOption" class="form-label">Select Processing Option:</label>
-    <InputSelect id="processingOption" @bind-Value="selectedOption">
-        <option value="">Select an option</option>
-        <option value="Swiss">Swiss</option>
-        <option value="Aon">Aon</option>
-        <option value="BH">BH</option>
-    </InputSelect>
-</div>
+<InputFile OnChange="HandleFileSelected" multiple />
 
-<div>
-    <InputFile OnChange="HandleFileSelected" disabled="@string.IsNullOrEmpty(selectedOption)" />
-    @if (fileStream != null)
-    {
-        <button class="btn btn-primary mt-2" @onclick="ProcessFile">Process</button>
-    }
-</div>
-
-@if (dataTable != null)
+@if (!string.IsNullOrEmpty(fileType))
 {
-    <table class="table mt-3">
-        <thead>
-            <tr>
-                @foreach (DataColumn col in dataTable.Columns)
-                {
-                    <th>@col.ColumnName</th>
-                }
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (DataRow row in dataTable.Rows)
-            {
-                <tr>
-                    @foreach (var cell in row.ItemArray)
-                    {
-                        <td>@cell</td>
-                    }
-                </tr>
-            }
-        </tbody>
-    </table>
+    <p>File Type Identified: @fileType</p>
 }
 
+@if (dataTables != null && dataTables.Any())
+{
+    @foreach (var dataTable in dataTables)
+    {
+        <div class="card">
+            <table class="table mt-3">
+                <thead>
+                    <tr>
+                        @foreach (DataColumn col in dataTable.Columns)
+                        {
+                            <th>@col.ColumnName</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (DataRow row in dataTable.Rows)
+                    {
+                        <tr>
+                            @foreach (var cell in row.ItemArray)
+                            {
+                                <td>@cell</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+<button class="btn btn-primary mt-2" @onclick="ProcessFiles">Process</button>
+
 @code {
-    private string selectedOption = string.Empty;
-    private DataTable? dataTable;
-    private MemoryStream? fileStream;
+    private List<MemoryStream> fileStreams = new();
+    private List<DataTable>? dataTables;
+    private string fileType = "";
 
     private async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
-        var file = e.File;
-        if (file != null && Path.GetExtension(file.Name).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+        foreach (var file in e.GetMultipleFiles())
         {
-            fileStream = new MemoryStream();
-            await file.OpenReadStream().CopyToAsync(fileStream);
-        }
-        else
-        {
-            fileStream = null; // Ensure fileStream is null if no or invalid file is selected
+            MemoryStream memoryStream = new();
+            await file.OpenReadStream().CopyToAsync(memoryStream);
+            fileStreams.Add(memoryStream);
+
+            // Identify file type based on file name
+            if (file.Name.Contains("RLS") || file.Name.Contains("ILW"))
+            {
+                fileType = "AON";
+            }
+            // Additional file types can be added here
         }
     }
 
-    private async Task ProcessFile()
+    private void ProcessFiles()
     {
-        if (fileStream != null && !string.IsNullOrEmpty(selectedOption))
+        dataTables = new List<DataTable>();
+
+        foreach (var fileStream in fileStreams)
         {
             fileStream.Position = 0; // Reset stream position to beginning
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Set according to your use case
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             using var package = new ExcelPackage(fileStream);
-            var worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
+            ExcelWorksheet worksheet;
 
-            // Adjust processing based on the selected option
-            int startRow = selectedOption == "Swiss" ? 13 : 1; // Example for 'Swiss', skipping 12 rows
-            dataTable = worksheet.Cells[startRow, 1, worksheet.Dimension.End.Row, worksheet.Dimension.End.Column].ToDataTable(options =>
+            switch (fileType)
             {
-                options.FirstRowIsColumnNames = true;
-            });
-
-            fileStream.Dispose(); // Clean up the MemoryStream
-            fileStream = null; // Reset the stream reference to null after processing
+                case "AON":
+                    worksheet = package.Workbook.Worksheets["RLS"]; // Target sheet
+                    var dataTable = ProcessAonWorksheet(worksheet);
+                    dataTables.Add(dataTable);
+                    break;
+                // Additional cases for other file types
+            }
         }
+
+        // Clear file streams after processing
+        fileStreams.ForEach(fs => fs.Dispose());
+        fileStreams.Clear();
+    }
+
+    private DataTable ProcessAonWorksheet(ExcelWorksheet worksheet)
+    {
+        DataTable dataTable = new();
+
+        // Implement logic to skip rows/columns as per AON requirements
+        // This is a simplified version and needs to be adapted based on actual Excel structure
+        var startRow = 4; // Row 4 contains headers
+        var endRow = worksheet.Dimension.End.Row;
+        var startColumn = 3; // Columns 1 and 2 are skipped
+
+        // Assume all columns in Row 4 up to the last column with a header are needed
+        var endColumn = worksheet.Dimension.End.Column;
+        for (int col = startColumn; col <= endColumn; col++)
+        {
+            if (!string.IsNullOrWhiteSpace(worksheet.Cells[4, col].Text))
+            {
+                dataTable.Columns.Add(worksheet.Cells[4, col].Text);
+            }
+        }
+
+        // Process rows, starting from row 5 (since row 4 is headers)
+        for (int row = 5; row <= endRow; row++)
+        {
+            var dataRow = dataTable.NewRow();
+            int dataIndex = 0;
+            for (int col = startColumn; col <= endColumn; col++)
+            {
+                if (!string.IsNullOrWhiteSpace(worksheet.Cells[4, col].Text)) // Check if column has header
+                {
+                    dataRow[dataIndex++] = worksheet.Cells[row, col].Text;
+                }
+            }
+            dataTable.Rows.Add(dataRow);
+        }
+
+        return dataTable;
     }
 }
