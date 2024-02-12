@@ -107,10 +107,56 @@
         fileStream.Dispose(); // Clean up the MemoryStream
     }
 
-    private void ProcessAonFile(ExcelWorksheet worksheet)
+private async Task ProcessAonFile(ExcelWorksheet worksheet)
+{
+    // Assuming 'worksheet' is already the "RLS" sheet, as checked when setting up the worksheet variable
+    var startRow = 4; // Row 4 contains the headers, skipping rows 1 through 3
+    var startColumn = 3; // Columns 1 and 2 are ignored, data starts from column 3
+
+    dataTable = new DataTable();
+
+    // Populate DataTable columns based on row 4 headers, skipping empty headers
+    for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
     {
-        // Implement AON processing logic here
+        var header = worksheet.Cells[startRow, col].Text;
+        if (!string.IsNullOrEmpty(header))
+        {
+            dataTable.Columns.Add(header); // Add column to DataTable
+        }
     }
+
+    // Populate DataTable rows, starting from row 5 (since row 4 contains headers)
+    for (int row = startRow + 1; row <= worksheet.Dimension.End.Row; row++)
+    {
+        var dataRow = dataTable.NewRow();
+        int columnIndex = 0; // To track the actual index of the column in the DataTable
+        for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
+        {
+            var header = worksheet.Cells[startRow, col].Text;
+            if (!string.IsNullOrEmpty(header))
+            {
+                dataRow[columnIndex++] = worksheet.Cells[row, col].Text;
+            }
+        }
+
+        // Check if the row is not entirely empty before adding
+        if (dataRow.ItemArray.Any(cell => !string.IsNullOrEmpty(cell.ToString())))
+        {
+            dataTable.Rows.Add(dataRow);
+        }
+    }
+
+    // Add and fill the QuoteDate column with the value extracted from the file name
+    dataTable.Columns.Add("QuoteDate", typeof(string));
+    foreach (DataRow row in dataTable.Rows)
+    {
+        row["QuoteDate"] = quoteDate; // Assuming 'quoteDate' is already set from the file name
+    }
+
+    // Further data processing, like replacing 'n/a' with 0, parsing numbers, etc., would be done here
+    // This can be complex in C# compared to R and might require iterating over rows and columns again
+}
+
 
     private void ProcessSwissFile(ExcelWorksheet worksheet)
     {
