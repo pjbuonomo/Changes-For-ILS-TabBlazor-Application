@@ -1,0 +1,382 @@
+Here is my QuickTables.razor file
+
+
+@page "/docs/quick-tables"
+@using TabBlazor.Components.QuickTables
+<style type="text/css">
+    .quick-table-example {
+        height: 300px;
+    }
+</style>
+<Page>
+    <DocsExample Title="Table" ComponentType="typeof(QuickTable<>)">
+
+         <CodeSnippet SetBackground ClassName="@typeof(QuickTablesEF).ToString()" Title="Entity Framework">
+             <Example>
+                 <QuickTablesEF></QuickTablesEF>
+             </Example>
+         </CodeSnippet>
+     </DocsExample>
+ </Page>
+
+
+Within the file QuickTablesEF.razor we define our component.
+
+@page "/quick-tables-ef"
+@using Tabler.Docs.Data
+@using Microsoft.EntityFrameworkCore
+@using TabBlazor.Components.QuickTables
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+
+<style>
+    .quick-table-example {
+        height: 300px;
+    }
+</style>
+
+<div class="card">
+    <QuickTable Items="@GetMarketQuotes()" Pagination="@pagination" Class="quick-table-example">
+        <PropertyColumn Property="@(mq => mq.QuoteDate)" Title="Date" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Broker)" Title="Broker" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.CUSIP)" Title="CUSIP" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Bond)" Title="Bond" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Size)" Title="Size" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Actions)" Title="Actions" Sortable="true" />
+        <PropertyColumn Property="@(mq => mq.Price)" Title="Price" Sortable="true" />
+    </QuickTable>
+    <Paginator Value="@pagination" />
+</div>
+
+@code {
+    private PaginationState pagination = new PaginationState { ItemsPerPage = 15 };
+
+    // This method returns an IQueryable<MarketQuote> for QuickTable to consume directly
+    private IQueryable<MarketQuote> GetMarketQuotes()
+    {
+        var dbContext = DbContextFactory.CreateDbContext();
+        return dbContext.MarketQuotes;
+    }
+}
+
+
+
+I would like to create a new component for file uploads.
+The goal would be that you can upload the file, it identifies the "Type" by the name of the file such as if the file name contains "RLS" & "ILW" it is marked with type Aon,
+
+Additionally, in addition to the delete button we should add a button for upload next to the delete button.
+
+A progress bar column for when the upload button is pressed to track the upload progress to the SQL server, which will take place according to the predefined processing logic for the Excel file types.
+
+For example certain Excels that are uploaded will require certain processing logic to skip or delete blank rows and columns.
+
+
+
+Furthermore we can remove the logic for the draggable components of the UI.
+
+Here is a basis of what I would like to accomplish
+
+<html lang="en" ng-app="demo">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Test</title>
+</head>
+
+<body ng-controller="demoController as vm">
+  <nav class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="#"> File Upload with Sorting</a>
+      </div>
+    </div>
+  </nav>
+  <div class="container">
+    <button class="btn btn-primary" ng-click="vm.addDoc()">Add Doc</button>
+    <div class="panel-group" data-as-sortable="vm.documentDragListeners" ng-model="vm.documents">
+      <div class="panel panel-default xlist" ng-repeat="doc in vm.documents" data-as-sortable-item>
+        <div class="panel-heading">
+          <h4 class="panel-title">
+                 <i class="fa fa-grip-large fa-rotate-90" data-as-sortable-item-handle></i>
+                <a data-toggle="collapse" data-target="#collapse{{$index}}">{{doc.type}}<i class="chevron fa fa-fw" ></i></a> <span class="badge">{{doc.files.length}}</span>
+                <a class="close-ribbon pull-right" ng-click="vm.removeDoc($index)"><i class="fa fa-times"></i></a>
+            </h4>
+
+        </div>
+        <div id="collapse{{$index}}" class="panel-collapse collapse in">
+          <div class="panel-body">
+            <button class="btn btn-primary" ngf-select="vm.addFiles($files,doc.files)" accept="*/*" multiple ng-model="vm.files" ngf-max-height="1000" ngf-max-size="5MB">
+                    Select Files</button>
+
+            <br>
+            <br>
+            <div ngf-drop="vm.addFiles($files,doc.files)" class="drop-box" ngf-drag-over-class="'dragover'" ngf-multiple="true" ngf-pattern="'image/*,application/pdf'">
+              <div class="dragOverlay">
+                <div class="dragInner">Drop files here.</div>
+              </div>
+              <div ngf-no-file-drop>File Drag/Drop is not supported for this browser</div>
+              <ul class="list-group" data-as-sortable="vm.fileDragListeners" ng-model="doc.files">
+                <li class="list-group-item list-group-item-info">
+                  <div class="row">
+                    <div class="col-lg-1 col-md-1 col-sm-3 col-xs-3">Sort</div>
+                    <div class="col-lg-4 col-md-4 col-sm-7 col-xs-7">Name</div>
+                    <div class="col-lg-2 col-md-2 hidden-sm hidden-xs">Size (MB)</div>
+                    <div class="col-lg-2 col-md-2 hidden-sm hidden-xs">Type</div>
+                    <div class="col-lg-2 col-md-2 hidden-sm hidden-xs">Modified on</div>
+                    <div class="col-lg-1 col-md-1 col-sm-1 col-xs-2"></div>
+                  </div>
+                </li>
+                <li class="list-group-item" ng-show="doc.files.length === 0">
+                  Drop Images or PDFs files here.
+                </li>
+                <li ng-repeat="f in doc.files" class="list-group-item xlist" data-as-sortable-item>
+                  <div class="row">
+                    <div class="col-lg-1 col-md-1 col-sm-3 col-xs-3">
+                      <div class="row">
+                        <div class="col-xs-4" data-as-sortable-item-handle style="padding-top:5px;">
+                          <i class="fa fa-grip"></i>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-lg-11 col-md-11 col-sm-7 col-xs-7">
+                      <div class="row">
+                        <div class="col-lg-5 col-md-5 col-sm-11 col-xs-10 wraptext">{{f.name}}
+                        </div>
+                        <div class="col-lg-2 col-md-2 hidden-sm hidden-xs">{{(f.size/1024/1024).toPrecision(2)}}</div>
+                        <div class="col-lg-2 col-md-2 hidden-sm hidden-xs">{{f.type}}</div>
+                        <div class="col-lg-2 col-md-2 hidden-sm hidden-xs">{{f.lastModified | date: short}}</div>
+                        <div class="col-lg-1 col-md-1 col-sm-1 col-xs-2">
+                          <button type="button" class="btn btn-xs btn-danger" ng-click="vm.removeFile(doc.files,$index)">
+                                                <span><i class="fa fa-trash"></i></span>
+                                            </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-primary">Upload</button>
+  </div>
+</body>
+
+</html>
+  body {
+    padding-top: 70px;
+    padding-bottom: 30px;
+  }
+  
+  .panel-group .panel+.panel {
+    margin-top: 10px;
+  }
+  /* \f142 is ellipsis-v */
+  /* \202F is thin unbreakable space */
+  
+  .fa.fa-grip:before {
+    content: "\f142 \202F \f142";
+  }
+  /*fa-grip-large : <i class="fa fa-grip-large fa-rotate-90"></i>*/
+  
+  .fa.fa-grip-large:before {
+    content: "\f142 \202F \f142 \202F \f142 \202F \f142";
+  }
+  
+  .panel-title .chevron:after {
+    content: "\f078";
+  }
+  
+  .panel-title .collapsed .chevron:after {
+    content: "\f054";
+  }
+  
+  .xlist.ng-enter {
+    /*
+  -webkit-transition: 0.4s ease-in all;
+    -moz-transition: 0.4s ease-in all;
+    -ms-transition: 0.4s ease-in all;
+    -o-transition: 0.4s ease-in all;
+  */
+    transition: 0.4s ease-in all;
+    opacity: 0;
+  }
+  
+  .xlist.ng-enter.ng-enter-active {
+    opacity: 1;
+  }
+  
+  .xlist.ng-leave {
+    transition: 0.4s ease-out all;
+    opacity: 1;
+  }
+  
+  .xlist.ng-leave.ng-leave-active {
+    opacity: 0;
+  }
+  
+  .drop-box {
+    border: 2px dashed #DDD;
+    margin: 5px;
+  }
+  
+  .dragover {
+    background: #F8F8F8;
+    border: 5px dashed darkorange;
+    position: relative;
+  }
+  
+  .dragOverlay {
+    display: none;
+  }
+  
+  .dragover .dragOverlay {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    text-align: center;
+    color: white;
+    background: rgb(0, 0, 0);
+    opacity: 0.3;
+    /* all other browsers*/
+    filter: alpha(opacity=30);
+    /* for IE5-7*/
+    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=30)";
+    /* for IE8*/
+    z-index: 2;
+  }
+  
+  .dragInner {
+    font-size: 25px;
+    position: absolute;
+    top: 40%;
+    left: 44%;
+  }
+  
+  .list-group {
+    margin-bottom: 0px;
+  }
+  /* ng-sortable css file */
+  
+  .as-sortable-item,
+  .as-sortable-placeholder {
+    display: block
+  }
+  
+  .as-sortable-item {
+    -ms-touch-action: none;
+    touch-action: none;
+    -webkit-touch-callout: none
+  }
+  
+  .as-sortable-item-handle {
+    cursor: move;
+    cursor: -webkit-grab;
+    cursor: -moz-grab
+  }
+  
+  .as-sortable-drag {
+    position: absolute;
+    pointer-events: none;
+    z-index: 9999
+  }
+  
+  .as-sortable-hidden {
+    display: none!important
+  }
+  
+  .as-sortable-un-selectable {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none
+  }
+  
+  .as-sortable-item,
+  .as-sortable-placeholder {
+    min-height: 20px;
+    margin: 1px 2px 5px 1px;
+    border-radius: 10px
+  }
+  
+  .as-sortable-item {
+    border: solid 1px darkgrey;
+    background-color: #fff
+  }
+  
+  .as-sortable-placeholder {
+    border: 1px dashed darkgrey;
+    box-sizing: border-box;
+    background-color: #dbdbdb
+  }
+  
+  .as-sortable-drag {
+    opacity: .8
+  }
+
+'use strict';
+var app = angular.module('demo', [
+  'ngFileUpload',
+  'as.sortable',
+  'ngAnimate'
+])
+
+.controller('demoController', ['Upload',
+  function(Upload) {
+    var vm = this;
+    vm.documents = [];
+
+    vm.documentDragListeners = {
+      accept: function(sourceItemHandleScope, destSortableScope) {
+        return sourceItemHandleScope.itemScope.sortableScope.$id === destSortableScope.$id;
+      },
+      orderChanged: function(event) {}
+    };
+
+    vm.fileDragListeners = {
+      accept: function(sourceItemHandleScope, destSortableScope) {
+        return sourceItemHandleScope.itemScope.sortableScope.$id === destSortableScope.$id;
+      },
+      orderChanged: function(event) {
+
+      }
+    };
+
+    vm.addDoc = function() {
+      vm.documents.push({
+        type: 'Doc'+vm.documents.length+1,
+        files: []
+      });
+    };
+    
+    vm.addDoc();
+    vm.addDoc();
+
+    vm.addFiles = function(files, arr) {
+      files.forEach(function(file) {
+        arr.push(file);
+      });
+
+    };
+
+    vm.removeDoc = function(idx) {
+      vm.documents.splice(idx, 1);
+    };
+
+    vm.removeFile = function(arr, idx) {
+      arr.splice(idx, 1);
+    };
+  }
+]);
+
+
+Keep in mind we are using Bootstrap.
+
+We want to have this be our upload logic for the Excel files. Therefore when the Upload button is pressed it shows the progress bar and says Uploaded to SQL Database upon completion. We will add that logic later.
+However it should be able to house and store multiple Excel files prior to upload. Once more I reiterate that based on the file type that is identified according to file name defines what the logic for processing to the SQL server is.
