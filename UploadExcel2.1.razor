@@ -59,7 +59,7 @@
                 fileTypeMessage = $"File Type Identified: {fileType}";
                 var fileStream = new MemoryStream();
                 await file.OpenReadStream().CopyToAsync(fileStream);
-                ProcessFile(fileStream);
+                await ProcessFile(fileStream);
                 break; // Assuming one file processing at a time for simplicity
             }
         }
@@ -100,7 +100,7 @@
         }
         else if (fileType == "Swiss")
         {
-            // Swiss specific processing
+            // Swiss specific processing adapted from the original logic
             ProcessSwissFile(worksheet);
         }
 
@@ -109,25 +109,18 @@
 
     private void ProcessAonFile(ExcelWorksheet worksheet)
     {
-        // Skip initial rows and remove unnecessary columns as per AON logic
-        // Implement the logic to process AON files based on the detailed description you provided
-        // This should include parsing the Excel file according to the AON rules, filling the QuoteDate, and removing unwanted columns
-
-        // For demonstration, we'll just create an empty DataTable. Replace with actual processing logic.
-        dataTable = new DataTable();
-        dataTable.Columns.Add("ExampleColumn", typeof(string));
-        dataTable.Rows.Add("Data specific to AON processing");
+        // Implement AON processing logic here
     }
 
     private void ProcessSwissFile(ExcelWorksheet worksheet)
     {
-        // Swiss specific processing
-        // Implement the logic to process Swiss files based on the detailed description you provided
-        // This includes setting the quote date, identifying the target sheet, skipping blank rows, and processing only columns with headers
-
-        // For demonstration, we'll just create an empty DataTable. Replace with actual processing logic.
-        dataTable = new DataTable();
-        dataTable.Columns.Add("ExampleColumn", typeof(string));
-        dataTable.Rows.Add("Data specific to Swiss processing");
+        // Adapted Swiss processing logic from the original code
+        int startRow = 13; // Example for 'Swiss', skipping 12 rows as per original logic
+        dataTable = worksheet.Cells[startRow, 3, worksheet.Dimension.End.Row, worksheet.Dimension.End.Column].ToDataTable(options =>
+        {
+            options.FirstRowIsColumnNames = true;
+            // Implement additional logic as needed to skip empty columns and fill every entry of Quote Date with the value from the file name
+        });
+        // Fill QuoteDate for every entry as needed
     }
 }
