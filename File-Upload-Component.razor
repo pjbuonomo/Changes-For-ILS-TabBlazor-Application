@@ -1,1 +1,65 @@
-Test
+@using System.IO
+@using Microsoft.AspNetCore.Components.Forms
+
+<div class="container mt-4">
+    <InputFile multiple OnChange="HandleFileSelection" class="mb-3" />
+    @if (files.Any())
+    {
+        <div class="list-group">
+            @foreach (var file in files)
+            {
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div class="me-auto">
+                        <div class="fw-bold">@file.Name (@GetFileType(file.Name))</div>
+                        Size: @file.Size bytes
+                    </div>
+                    <button class="btn btn-success btn-sm me-2" @onclick="() => UploadFile(file)">Upload</button>
+                    <button class="btn btn-danger btn-sm" @onclick="() => RemoveFile(file)">Delete</button>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<IBrowserFile> files = new List<IBrowserFile>();
+
+    private void HandleFileSelection(InputFileChangeEventArgs e)
+    {
+        files.AddRange(e.GetMultipleFiles());
+        StateHasChanged();
+    }
+
+    private void RemoveFile(IBrowserFile file)
+    {
+        files.Remove(file);
+        StateHasChanged();
+    }
+
+    private async Task UploadFile(IBrowserFile file)
+    {
+        // Initialize your upload progress logic here
+        // For now, just a placeholder for actual upload logic
+        Console.WriteLine($"Uploading {file.Name}");
+
+        // Simulate an upload with a delay
+        await Task.Delay(1000);
+
+        // Post-upload logic (e.g., marking the file as uploaded in the UI) goes here
+
+        StateHasChanged();
+    }
+
+    private string GetFileType(string fileName)
+    {
+        if (fileName.Contains("RLS") && fileName.Contains("ILW"))
+        {
+            return "Aon";
+        }
+        // Add more conditions based on your naming conventions
+        else
+        {
+            return "Unknown";
+        }
+    }
+}
