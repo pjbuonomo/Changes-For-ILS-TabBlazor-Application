@@ -109,62 +109,56 @@
 
 private async Task ProcessAonFile(ExcelWorksheet worksheet)
 {
-    // Assuming 'worksheet' is already the "RLS" sheet
-    var headerRow = 4; // Row 4 contains the headers
-    var startRow = 6; // Data starts from row 6, skipping the blank row 5
-    var startColumn = 3; // Columns 1 and 2 are ignored, data starts from column 3
+    var headerRow = 4; // Headers are located in row 4
+    var dataStartRow = 6; // Data starts from row 6, accounting for a blank row 5
+    var startColumn = 3; // Ignoring columns 1 and 2, data starts from column 3
 
     dataTable = new DataTable();
 
-    // Populate DataTable columns based on row 4 headers, skipping empty headers
+    // Define a list to keep track of columns that are not empty based on header row
+    List<int> validColumns = new List<int>();
+
+    // Populate DataTable columns based on row 4 headers
     for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
     {
-        var header = worksheet.Cells[headerRow, col].Text;
+        var header = worksheet.Cells[headerRow, col].Text.Trim();
         if (!string.IsNullOrEmpty(header))
         {
             dataTable.Columns.Add(header); // Add column to DataTable
+            validColumns.Add(col); // Add column index to list of valid columns
         }
     }
 
-    // Since EPPlus does not have a direct method to check for blank rows, we proceed with the assumption that
-    // data starts from row 6 as specified. You may need to add checks for entirely blank rows if necessary.
-
-    // Populate DataTable rows, starting from row 6
-    for (int row = startRow; row <= worksheet.Dimension.End.Row; row++)
+    // Process each row starting from dataStartRow
+    for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
     {
-        bool isRowEmpty = true; // Assume row is empty until proven otherwise
         var dataRow = dataTable.NewRow();
-        int columnIndex = 0; // To track the actual index of the column in the DataTable
-        for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
+        bool rowHasData = false;
+
+        // Iterate only through valid columns
+        for (int i = 0; i < validColumns.Count; i++)
         {
-            var header = worksheet.Cells[headerRow, col].Text;
-            if (!string.IsNullOrEmpty(header))
+            var cellValue = worksheet.Cells[row, validColumns[i]].Text.Trim();
+            dataRow[i] = cellValue;
+
+            if (!string.IsNullOrEmpty(cellValue))
             {
-                var cellValue = worksheet.Cells[row, col].Text;
-                dataRow[columnIndex++] = cellValue;
-                if (!string.IsNullOrEmpty(cellValue)) isRowEmpty = false; // Row has data
+                rowHasData = true; // Mark row as having data if any cell is not empty
             }
         }
 
-        // Only add the row to the DataTable if it contains data
-        if (!isRowEmpty)
+        // Add the row to the dataTable only if it has data
+        if (rowHasData)
         {
+            // Before adding the row, set the QuoteDate value
+            dataRow["QuoteDate"] = quoteDate; // This assumes a column named "QuoteDate" exists and is set to the extracted date
             dataTable.Rows.Add(dataRow);
         }
     }
 
-    // Add and fill the QuoteDate column with the value extracted from the file name
-    if (!dataTable.Columns.Contains("QuoteDate"))
-    {
-        dataTable.Columns.Add("QuoteDate", typeof(string));
-        foreach (DataRow row in dataTable.Rows)
-        {
-            row["QuoteDate"] = quoteDate; // Assuming 'quoteDate' is already set from the file name
-        }
-    }
-
-    // Further data processing, like replacing 'n/a' with 0, parsing numbers, etc., can be done here
+    // Assuming dataTable needs to be processed further or used as is for UI display or other logic
 }
+
 
 
 
