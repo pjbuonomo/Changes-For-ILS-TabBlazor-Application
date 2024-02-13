@@ -52,14 +52,15 @@
         var files = e.GetMultipleFiles();
         foreach (var file in files)
         {
-            IdentifyFileTypeAndQuoteDate(file.Name);
+            var fileName = file.Name; // Capture the file name here
+            IdentifyFileTypeAndQuoteDate(fileName); // This already sets 'quoteDate' based on 'fileName'
 
             if (!string.IsNullOrEmpty(fileType))
             {
                 fileTypeMessage = $"File Type Identified: {fileType}";
                 var fileStream = new MemoryStream();
                 await file.OpenReadStream().CopyToAsync(fileStream);
-                await ProcessFile(fileStream);
+                await ProcessFile(fileStream, fileName); // Pass 'fileName' to 'ProcessFile'
                 break; // Assuming one file processing at a time for simplicity
             }
         }
@@ -86,7 +87,7 @@
         }
     }
 
-    private async Task ProcessFile(MemoryStream fileStream)
+    private async Task ProcessFile(MemoryStream fileStream, string fileName) // Update signature to accept 'fileName'
     {
         fileStream.Position = 0; // Reset stream position to the beginning
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Set according to your use case
@@ -95,13 +96,11 @@
 
         if (fileType == "AON")
         {
-            // AON specific processing
-            ProcessAonFile(worksheet);
+            ProcessAonFile(worksheet, fileName); // Now correctly passing 'fileName'
         }
         else if (fileType == "Swiss")
         {
-            // Swiss specific processing adapted from the original logic
-            ProcessSwissFile(worksheet);
+            ProcessSwissFile(worksheet); // This method does not need 'fileName'
         }
 
         fileStream.Dispose(); // Clean up the MemoryStream
