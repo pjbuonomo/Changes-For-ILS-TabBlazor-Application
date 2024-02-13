@@ -68,6 +68,14 @@
 
     private void IdentifyFileTypeAndQuoteDate(string fileName)
     {
+        // Adjust to include "BH" file identification
+        if (fileName.Contains("BH", StringComparison.OrdinalIgnoreCase))
+        {
+            fileType = "BH";
+            // Extraction logic adjusted for "BH" file naming convention
+            var match = Regex.Match(fileName, @"\d{8}");
+            if (match.Success) quoteDate = DateTime.ParseExact(match.Value, "yyyyMMdd", null).ToString("yyyy-MM-dd");
+        }
         if (Regex.IsMatch(fileName, "RLS|ILW", RegexOptions.IgnoreCase))
         {
             fileType = "AON";
@@ -93,7 +101,11 @@
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         using var package = new ExcelPackage(fileStream);
         var worksheet = package.Workbook.Worksheets.FirstOrDefault(ws => ws.Name.Equals("RLS", StringComparison.OrdinalIgnoreCase)) ?? package.Workbook.Worksheets[0];
-
+        
+        if (fileType == "BH")
+        {
+            ProcessBHFile(worksheet, fileName); // Correctly passing 'fileName' to the new method
+        }
         if (fileType == "AON")
         {
             ProcessAonFile(worksheet, fileName);
@@ -105,7 +117,55 @@
 
         fileStream.Dispose();
     }
-
+    private void ProcessBHFile(ExcelWorksheet worksheet, string fileName)
+    {
+        dataTable = new DataTable();
+    
+        // Extract QuoteDate from fileName using Regex assuming format "BHcatpricingYYYYMMDD"
+        var dateMatch = Regex.Match(fileName, @"\d{8}");
+        string quoteDate = dateMatch.Success ? DateTime.ParseExact(dateMatch.Value, "yyyyMMdd", null).ToString("yyyy-MM-dd") : "Unknown Date";
+    
+        // Add "QuoteDate" column first
+        dataTable.Columns.Add("QuoteDate", typeof(string));
+    
+        var headerRow = 2; // Row 2 contains the headers.
+        var startColumn = 1; // Assuming data starts from column 1 for BH files.
+    
+        // Add columns to dataTable based on headers present in row 2.
+        for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
+        {
+            var headerText = worksheet.Cells[headerRow, col].Text.Trim();
+            if (!string.IsNullOrEmpty(headerText))
+            {
+                dataTable.Columns.Add(headerText);
+            }
+        }
+    
+        // Process each row of data, starting from row 4 (skipping row 3).
+        for (int row = 4; row <= worksheet.Dimension.End.Row; row++)
+        {
+            // Skip row if the value in Column C is blank.
+            if (string.IsNullOrWhiteSpace(worksheet.Cells[row, 3].Text))
+            {
+                continue;
+            }
+    
+            var dataRow = dataTable.NewRow();
+            dataRow["QuoteDate"] = quoteDate; // Populate QuoteDate for each row.
+    
+            // Populate the data row with values from the worksheet.
+            for (int col = startColumn, dataTableCol = 1; col <= worksheet.Dimension.End.Column; col++, dataTableCol++)
+            {
+                if (dataTable.Columns.Count > dataTableCol) // Ensure column exists in DataTable
+                {
+                    var cellValue = worksheet.Cells[row, col].Text.Trim();
+                    dataRow[dataTableCol] = cellValue;
+                }
+            }
+    
+            dataTable.Rows.Add(dataRow);
+        }
+    }
     private void ProcessAonFile(ExcelWorksheet worksheet, string fileName)
     {
         dataTable = new DataTable();
