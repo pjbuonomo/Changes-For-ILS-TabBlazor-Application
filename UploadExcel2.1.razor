@@ -107,73 +107,64 @@
         fileStream.Dispose(); // Clean up the MemoryStream
     }
 
-private void ProcessAonFile(ExcelWorksheet worksheet)
-{
-    dataTable = new DataTable();
-    var headerRow = 4; // Headers are in row 4.
-    var dataStartRow = 6; // Data starts from row 6.
-    var startColumn = 3; // Data starts from column 3, skipping the first 2 columns.
-
-    // Initialize counters for each special header to track their occurrences.
-    int apCount = 0, elCount = 0, bidCount = 0, offerCount = 0;
-
-    List<int> validColumnIndices = new List<int>(); // To track valid Excel column indices.
-
-    // Process headers with specific renaming rules based on their occurrences.
-    for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
+    private void ProcessAonFile(ExcelWorksheet worksheet)
     {
-        var headerText = worksheet.Cells[headerRow, col].Text.Trim();
-        if (!string.IsNullOrEmpty(headerText))
+        dataTable = new DataTable();
+        var headerRow = 4; // Headers are in row 4.
+        var dataStartRow = 6; // Data starts from row 6.
+        var startColumn = 3; // Data starts from column 3, skipping the first 2 columns.
+
+        // Initialize counters for each special header to track their occurrences.
+        int apCount = 0, elCount = 0, bidCount = 0, offerCount = 0;
+
+        List<int> validColumnIndices = new List<int>(); // To track valid Excel column indices.
+
+        // Process headers with specific renaming rules based on their occurrences.
+        for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
         {
-            // Apply renaming logic based on the header text and its occurrence count.
-            switch (headerText)
+            var headerText = worksheet.Cells[headerRow, col].Text.Trim();
+            if (!string.IsNullOrEmpty(headerText))
             {
-                case "AP":
-                    headerText = (++apCount == 1) ? "LongTermAsk" : "NearTermAsk";
-                    break;
-                case "EL":
-                    headerText = (++elCount == 1) ? "LongTermEL" : "NearTermEL";
-                    break;
-                case "Bid":
-                    headerText = (++bidCount == 1) ? "BidSpread" : "BidPrice";
-                    break;
-                case "Offer":
-                    headerText = (++offerCount == 1) ? "OfferSpread" : "OfferPrice";
-                    break;
+                // Apply renaming logic based on the header text and its occurrence count.
+                switch (headerText)
+                {
+                    case "AP":
+                        headerText = (++apCount == 1) ? "LongTermAsk" : "NearTermAsk";
+                        break;
+                    case "EL":
+                        headerText = (++elCount == 1) ? "LongTermEL" : "NearTermEL";
+                        break;
+                    case "Bid":
+                        headerText = (++bidCount == 1) ? "BidSpread" : "BidPrice";
+                        break;
+                    case "Offer":
+                        headerText = (++offerCount == 1) ? "OfferSpread" : "OfferPrice";
+                        break;
+                }
+
+                dataTable.Columns.Add(headerText); // Add the renamed column.
+                validColumnIndices.Add(col); // Add to list of indices with valid (non-blank) headers.
+            }
+        }
+
+        // Process each data row, considering only columns with valid (non-blank) headers.
+        for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
+        {
+            var dataRow = dataTable.NewRow();
+
+            // Populate the data row based on valid column indices.
+            for (int i = 0; i < validColumnIndices.Count; i++)
+            {
+                int excelColIndex = validColumnIndices[i]; // Actual Excel column index.
+                var cellValue = worksheet.Cells[row, excelColIndex].Text.Trim();
+                dataRow[i] = cellValue; // Assign cell value to the correctly renamed column in dataRow.
             }
 
-            dataTable.Columns.Add(headerText); // Add the renamed column.
-            validColumnIndices.Add(col); // Add to list of indices with valid (non-blank) headers.
-        }
-    }
-
-    // Process each data row, considering only columns with valid (non-blank) headers.
-    for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
-    {
-        var dataRow = dataTable.NewRow();
-
-        // Populate the data row based on valid column indices.
-        for (int i = 0; i < validColumnIndices.Count; i++)
-        {
-            int excelColIndex = validColumnIndices[i]; // Actual Excel column index.
-            var cellValue = worksheet.Cells[row, excelColIndex].Text.Trim();
-            dataRow[i] = cellValue; // Assign cell value to the correctly renamed column in dataRow.
+            dataTable.Rows.Add(dataRow); // Add the populated dataRow to the dataTable.
         }
 
-        dataTable.Rows.Add(dataRow); // Add the populated dataRow to the dataTable.
+        // dataTable now correctly populated with headers renamed according to specified rules and data aligned under these headers.
     }
-
-    // dataTable now correctly populated with headers renamed according to specified rules and data aligned under these headers.
-}
-
-
-
-
-
-
-
-
-
 
 
 
@@ -189,16 +180,3 @@ private void ProcessAonFile(ExcelWorksheet worksheet)
         // Fill QuoteDate for every entry as needed
     }
 }
-
-
-
-Issue	ID#		Ticker		($MM)	Date	Maturity		Regions/Perils	AP	EL	AP	EL		S&P	M	F	Coupon	Bid	Offer	Bid	Offer	Occurrence
-Acorn Re 2021-1	00485YAC3		ACORNR		475.00	10/29/2021	5/7/2025		US, Can, Mex	1.20	0.89							MM + 250	419	324	97.65	98.97	Occurrence
-
-
-
-These are how the columns should align.
-
-
-QUOTEDATE	ISSUE	ID#	TICKER	($MM)	DATE	MATURITY	REGIONS/PERILS	LONGTERMASK	LONGTERMEL	NEARTERMASK	NEARTERMEL	S&P	M	F	COUPON	BIDSPREAD	OFFERSPREAD	BIDPRICE	OFFERPRICE	OCCURRENCE
-2024-01-19	Acorn Re 2021-1	00485YAC3		ACORNR		475.00	10/29/2021	5/7/2025		US, Can, Mex	1.20	0.89							MM + 250	367
