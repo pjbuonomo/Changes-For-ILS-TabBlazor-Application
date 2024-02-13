@@ -1,0 +1,191 @@
+@page "/excel-upload"
+@using Microsoft.AspNetCore.Components.Forms
+@using OfficeOpenXml
+@using System.Data
+@using System.IO
+@using System.Linq
+@using System.Text.RegularExpressions
+
+<div>
+    <InputFile OnChange="HandleFileSelected" multiple />
+    @if (!string.IsNullOrEmpty(fileTypeMessage))
+    {
+        <div class="mt-2">@fileTypeMessage</div>
+    }
+</div>
+
+@if (dataTable != null)
+{
+    <div class="card">
+        <table class="table mt-3">
+            <thead>
+                <tr>
+                    @foreach (DataColumn col in dataTable.Columns)
+                    {
+                        <th>@col.ColumnName</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (DataRow row in dataTable.Rows)
+                {
+                    <tr>
+                        @foreach (var cell in row.ItemArray)
+                        {
+                            <td>@cell</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private DataTable? dataTable;
+    private string fileTypeMessage = string.Empty;
+    private string fileType = string.Empty;
+    private string quoteDate = string.Empty;
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var files = e.GetMultipleFiles();
+        foreach (var file in files)
+        {
+            IdentifyFileTypeAndQuoteDate(file.Name);
+
+            if (!string.IsNullOrEmpty(fileType))
+            {
+                fileTypeMessage = $"File Type Identified: {fileType}";
+                var fileStream = new MemoryStream();
+                await file.OpenReadStream().CopyToAsync(fileStream);
+                await ProcessFile(fileStream);
+                break; // Assuming one file processing at a time for simplicity
+            }
+        }
+    }
+
+    private void IdentifyFileTypeAndQuoteDate(string fileName)
+    {
+        if (Regex.IsMatch(fileName, "RLS|ILW", RegexOptions.IgnoreCase))
+        {
+            fileType = "AON";
+            var match = Regex.Match(fileName, @"\d{4}-\d{2}-\d{2}");
+            if (match.Success) quoteDate = match.Value;
+        }
+        else if (fileName.Contains("ILS pricing data", StringComparison.OrdinalIgnoreCase))
+        {
+            fileType = "Swiss";
+            var match = Regex.Match(fileName, @"\d{8}");
+            if (match.Success) quoteDate = $"{match.Value.Substring(0, 4)}-{match.Value.Substring(4, 2)}-{match.Value.Substring(6, 2)}";
+        }
+        else
+        {
+            fileType = string.Empty;
+            quoteDate = string.Empty;
+        }
+    }
+
+    private async Task ProcessFile(MemoryStream fileStream)
+    {
+        fileStream.Position = 0; // Reset stream position to the beginning
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Set according to your use case
+        using var package = new ExcelPackage(fileStream);
+        var worksheet = package.Workbook.Worksheets.FirstOrDefault(ws => ws.Name.Equals("RLS", StringComparison.OrdinalIgnoreCase)) ?? package.Workbook.Worksheets[0];
+
+        if (fileType == "AON")
+        {
+            // AON specific processing
+            ProcessAonFile(worksheet);
+        }
+        else if (fileType == "Swiss")
+        {
+            // Swiss specific processing adapted from the original logic
+            ProcessSwissFile(worksheet);
+        }
+
+        fileStream.Dispose(); // Clean up the MemoryStream
+    }
+
+private void ProcessAonFile(ExcelWorksheet worksheet)
+{
+    dataTable = new DataTable();
+    var headerRow = 4; // Headers are in row 4.
+    var dataStartRow = 6; // Data starts from row 6.
+    var startColumn = 3; // Data starts from column 3, skipping the first 2 columns.
+
+    // Initialize counters for each special header to track their occurrences.
+    int apCount = 0, elCount = 0, bidCount = 0, offerCount = 0;
+
+    List<int> validColumnIndices = new List<int>(); // To track valid Excel column indices.
+
+    // Process headers with specific renaming rules based on their occurrences.
+    for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
+    {
+        var headerText = worksheet.Cells[headerRow, col].Text.Trim();
+        if (!string.IsNullOrEmpty(headerText))
+        {
+            // Apply renaming logic based on the header text and its occurrence count.
+            switch (headerText)
+            {
+                case "AP":
+                    headerText = (++apCount == 1) ? "LongTermAsk" : "NearTermAsk";
+                    break;
+                case "EL":
+                    headerText = (++elCount == 1) ? "LongTermEL" : "NearTermEL";
+                    break;
+                case "Bid":
+                    headerText = (++bidCount == 1) ? "BidSpread" : "BidPrice";
+                    break;
+                case "Offer":
+                    headerText = (++offerCount == 1) ? "OfferSpread" : "OfferPrice";
+                    break;
+            }
+
+            dataTable.Columns.Add(headerText); // Add the renamed column.
+            validColumnIndices.Add(col); // Add to list of indices with valid (non-blank) headers.
+        }
+    }
+
+    // Process each data row, considering only columns with valid (non-blank) headers.
+    for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
+    {
+        var dataRow = dataTable.NewRow();
+
+        // Populate the data row based on valid column indices.
+        for (int i = 0; i < validColumnIndices.Count; i++)
+        {
+            int excelColIndex = validColumnIndices[i]; // Actual Excel column index.
+            var cellValue = worksheet.Cells[row, excelColIndex].Text.Trim();
+            dataRow[i] = cellValue; // Assign cell value to the correctly renamed column in dataRow.
+        }
+
+        dataTable.Rows.Add(dataRow); // Add the populated dataRow to the dataTable.
+    }
+
+    // dataTable now correctly populated with headers renamed according to specified rules and data aligned under these headers.
+}
+
+
+
+
+
+
+
+
+
+
+
+
+    private void ProcessSwissFile(ExcelWorksheet worksheet)
+    {
+        // Adapted Swiss processing logic from the original code
+        int startRow = 13; // Example for 'Swiss', skipping 12 rows as per original logic
+        dataTable = worksheet.Cells[startRow, 3, worksheet.Dimension.End.Row, worksheet.Dimension.End.Column].ToDataTable(options =>
+        {
+            options.FirstRowIsColumnNames = true;
+            // Implement additional logic as needed to skip empty columns and fill every entry of Quote Date with the value from the file name
+        });
+        // Fill QuoteDate for every entry as needed
+    }
+}
