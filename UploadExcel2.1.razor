@@ -110,58 +110,43 @@
 private void ProcessAonFile(ExcelWorksheet worksheet)
 {
     dataTable = new DataTable();
-    var headerRow = 4; // Row 4 contains the headers.
-    var dataStartRow = 6; // Actual data starts from row 6.
-    var startColumn = 3; // Starting from column 3 because columns 1 and 2 are to be ignored.
+    var headerRow = 4; // Headers are in row 4.
+    var dataStartRow = 6; // Data starts from row 6.
+    var startColumn = 3; // Data starts from column 3, skipping the first 2 columns.
 
-    // Track occurrence of specific headers for potential renaming.
-    Dictionary<string, int> headerOccurrences = new Dictionary<string, int>();
+    // A list to keep track of valid (non-blank) column indices from the Excel sheet.
+    List<int> validColumnIndices = new List<int>();
 
-    // Add columns based on headers present in the Excel sheet, starting from the startColumn index.
+    // Add columns to DataTable based on non-blank headers and track their indices.
     for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
     {
         var headerText = worksheet.Cells[headerRow, col].Text.Trim();
-        
-        // Check and rename headers based on occurrences if needed.
         if (!string.IsNullOrEmpty(headerText))
         {
-            if (!headerOccurrences.ContainsKey(headerText))
-            {
-                headerOccurrences[headerText] = 1; // First occurrence of this header
-            }
-            else
-            {
-                // Increment occurrence count and modify header name to reflect this.
-                int count = ++headerOccurrences[headerText];
-                headerText += count.ToString(); // Append occurrence count to make the header unique
-            }
-
-            dataTable.Columns.Add(headerText); // Add column to DataTable
+            dataTable.Columns.Add(headerText); // Add column for non-blank header.
+            validColumnIndices.Add(col); // Remember this column's index as valid.
         }
     }
 
-    // Process rows starting from dataStartRow.
+    // Process each row of data, considering only valid (non-blank header) columns.
     for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
     {
         var dataRow = dataTable.NewRow();
-        
-        // Populate the data row with values from the worksheet.
-        int dataTableColIndex = 0; // Index for accessing columns in the DataRow
-        for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++, dataTableColIndex++)
+
+        // Iterate through valid column indices to populate dataRow accurately.
+        for (int i = 0; i < validColumnIndices.Count; i++)
         {
-            var cellValue = worksheet.Cells[row, col].Text.Trim();
-            if (dataTable.Columns.Count > dataTableColIndex) // Ensure we have a corresponding column
-            {
-                dataRow[dataTableColIndex] = cellValue;
-            }
+            int excelColIndex = validColumnIndices[i]; // Get the actual Excel column index.
+            var cellValue = worksheet.Cells[row, excelColIndex].Text.Trim();
+            dataRow[i] = cellValue; // Assign cell value to the correct column in dataRow.
         }
 
-        dataTable.Rows.Add(dataRow);
+        dataTable.Rows.Add(dataRow); // Add the populated dataRow to the dataTable.
     }
 
-    // At this point, dataTable is populated with rows from the Excel sheet,
-    // with all headers directly taken from the Excel sheet and data aligned under them.
+    // Now, dataTable should be accurately populated with data aligned under the correct headers.
 }
+
 
 
 
