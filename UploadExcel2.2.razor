@@ -87,76 +87,75 @@
         }
     }
 
-    private async Task ProcessFile(MemoryStream fileStream, string fileName)
-    {
-        fileStream.Position = 0;
-        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-        using var package = new ExcelPackage(fileStream);
-        var worksheet = package.Workbook.Worksheets.FirstOrDefault(ws => ws.Name.Equals("RLS", StringComparison.OrdinalIgnoreCase)) ?? package.Workbook.Worksheets[0];
-
-        if (fileType == "AON")
-        {
-            ProcessAonFile(worksheet, fileName);
-        }
-        else if (fileType == "Swiss")
-        {
-            ProcessSwissFile(worksheet);
-        }
-
-        fileStream.Dispose();
-    }
-
     private void ProcessAonFile(ExcelWorksheet worksheet, string fileName)
+{
+    dataTable = new DataTable();
+
+    // Extract QuoteDate from fileName using Regex assuming format "YYYY-MM-DD"
+    var dateMatch = Regex.Match(fileName, @"\d{4}-\d{2}-\d{2}");
+    string quoteDate = dateMatch.Success ? dateMatch.Value : "Unknown Date";
+
+    // Add "QuoteDate" column first
+    dataTable.Columns.Add("QuoteDate", typeof(string));
+
+    var headerRow = 4; // Headers are in row 4.
+    var dataStartRow = 6; // Data starts from row 6.
+    var startColumn = 3; // Data starts from column 3, skipping the first 2 columns.
+
+    // Initialize counters for renaming specific headers based on their occurrences.
+    int apCount = 0, elCount = 0, bidCount = 0, offerCount = 0;
+    List<int> validColumnIndices = new List<int>();
+
+    // Add columns to dataTable based on non-blank headers present in the Excel sheet.
+    for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
     {
-        dataTable = new DataTable();
-        var headerRow = 4;
-        var dataStartRow = 6;
-        var startColumn = 3;
-
-        // Initialize counters for renaming specific headers based on their occurrences.
-        int apCount = 0, elCount = 0, bidCount = 0, offerCount = 0;
-        List<int> validColumnIndices = new List<int>();
-
-        for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
+        var headerText = worksheet.Cells[headerRow, col].Text.Trim();
+        if (!string.IsNullOrEmpty(headerText))
         {
-            var headerText = worksheet.Cells[headerRow, col].Text.Trim();
-            if (!string.IsNullOrEmpty(headerText))
+            switch (headerText)
             {
-                switch (headerText)
-                {
-                    case "AP":
-                        headerText = (++apCount == 1) ? "LongTermAsk" : "NearTermAsk";
-                        break;
-                    case "EL":
-                        headerText = (++elCount == 1) ? "LongTermEL" : "NearTermEL";
-                        break;
-                    case "Bid":
-                        headerText = (++bidCount == 1) ? "BidSpread" : "BidPrice";
-                        break;
-                    case "Offer":
-                        headerText = (++offerCount == 1) ? "OfferSpread" : "OfferPrice";
-                        break;
-                }
-                dataTable.Columns.Add(headerText);
-                validColumnIndices.Add(col);
+                case "AP":
+                    headerText = (++apCount == 1) ? "LongTermAsk" : "NearTermAsk";
+                    break;
+                case "EL":
+                    headerText = (++elCount == 1) ? "LongTermEL" : "NearTermEL";
+                    break;
+                case "Bid":
+                    headerText = (++bidCount == 1) ? "BidSpread" : "BidPrice";
+                    break;
+                case "Offer":
+                    headerText = (++offerCount == 1) ? "OfferSpread" : "OfferPrice";
+                    break;
             }
-        }
-
-        for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
-        {
-            if (string.IsNullOrWhiteSpace(worksheet.Cells[row, 3].Text)) continue;
-
-            var dataRow = dataTable.NewRow();
-            for (int i = 0; i < validColumnIndices.Count; i++)
-            {
-                int excelColIndex = validColumnIndices[i];
-                var cellValue = worksheet.Cells[row, excelColIndex].Text.Trim();
-                dataRow[i] = cellValue;
-            }
-
-            dataTable.Rows.Add(dataRow);
+            dataTable.Columns.Add(headerText);
+            validColumnIndices.Add(col);
         }
     }
+
+    // Process each row of data, considering only columns with valid headers.
+    for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
+    {
+        // Skip row if the value in Column C is blank.
+        if (string.IsNullOrWhiteSpace(worksheet.Cells[row, 3].Text))
+        {
+            continue;
+        }
+
+        var dataRow = dataTable.NewRow();
+        dataRow["QuoteDate"] = quoteDate; // Populate QuoteDate for each row.
+
+        // Populate the data row based on valid column indices.
+        for (int i = 0, dataTableCol = 1; i < validColumnIndices.Count; i++, dataTableCol++)
+        {
+            int excelColIndex = validColumnIndices[i];
+            var cellValue = worksheet.Cells[row, excelColIndex].Text.Trim();
+            dataRow[dataTableCol] = cellValue; // Populate data starting from the second column since the first is "QuoteDate".
+        }
+
+        dataTable.Rows.Add(dataRow);
+    }
+}
+
     private void ProcessSwissFile(ExcelWorksheet worksheet)
     {
         // Adapted Swiss processing logic from the original code
