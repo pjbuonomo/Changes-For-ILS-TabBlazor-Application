@@ -110,54 +110,61 @@
 private async Task ProcessAonFile(ExcelWorksheet worksheet)
 {
     var headerRow = 4; // Headers are located in row 4
-    var dataStartRow = 6; // Data starts from row 6, accounting for a blank row 5
-    var startColumn = 3; // Ignoring columns 1 and 2, data starts from column 3
+    var dataStartRow = 6; // Data starts from row 6, after a blank row
+    var startColumn = 3; // Data starts from column 3, skipping columns 1 and 2
 
     dataTable = new DataTable();
 
-    // Define a list to keep track of columns that are not empty based on header row
+    // First, ensure the "QuoteDate" column is added to the DataTable
+    dataTable.Columns.Add("QuoteDate", typeof(string));
+
+    // Define a list to keep track of valid (non-empty) column indices
     List<int> validColumns = new List<int>();
 
-    // Populate DataTable columns based on row 4 headers
+    // Populate DataTable columns based on row 4 headers, skipping empty headers
     for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
     {
         var header = worksheet.Cells[headerRow, col].Text.Trim();
         if (!string.IsNullOrEmpty(header))
         {
             dataTable.Columns.Add(header); // Add column to DataTable
-            validColumns.Add(col); // Add column index to list of valid columns
+            validColumns.Add(col); // This column index is valid since it has a header
         }
     }
 
-    // Process each row starting from dataStartRow
+    // Process each row, starting from where actual data begins
     for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
     {
         var dataRow = dataTable.NewRow();
         bool rowHasData = false;
 
-        // Iterate only through valid columns
+        // Set "QuoteDate" for each row
+        dataRow["QuoteDate"] = quoteDate;
+
+        // Iterate through the valid columns to populate the row
         for (int i = 0; i < validColumns.Count; i++)
         {
             var cellValue = worksheet.Cells[row, validColumns[i]].Text.Trim();
-            dataRow[i] = cellValue;
+            // DataColumn index needs to be offset by 1 due to the addition of "QuoteDate" at the beginning
+            dataRow[i + 1] = cellValue;
 
             if (!string.IsNullOrEmpty(cellValue))
             {
-                rowHasData = true; // Mark row as having data if any cell is not empty
+                rowHasData = true; // This row contains data
             }
         }
 
-        // Add the row to the dataTable only if it has data
+        // Only add the row to the dataTable if it contains data
         if (rowHasData)
         {
-            // Before adding the row, set the QuoteDate value
-            dataRow["QuoteDate"] = quoteDate; // This assumes a column named "QuoteDate" exists and is set to the extracted date
             dataTable.Rows.Add(dataRow);
         }
     }
 
-    // Assuming dataTable needs to be processed further or used as is for UI display or other logic
+    // After processing, dataTable contains all the rows with data from the worksheet,
+    // and each row has the "QuoteDate" filled in.
 }
+
 
 
 
