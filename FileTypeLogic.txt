@@ -88,7 +88,7 @@ odbcClose(db_conn)
 However this code assumes the file has been "cleaned" and blank rows/files have been deleted and etc.
 
 ------------
-TYPE: 
+TYPE: BH
 File BHcatpricing20231208.xlsx
 Identified by file name containing "BH"
 QuoteDate is derived from the file name. Ex. BHcatpricing20231208 -> 20231208 -> 2023-12-08
