@@ -107,25 +107,29 @@
         fileStream.Dispose(); // Clean up the MemoryStream
     }
 
-private void ProcessAonFile(ExcelWorksheet worksheet)
+using System.Text.RegularExpressions; // Ensure this is included at the top for Regex
+
+private void ProcessAonFile(ExcelWorksheet worksheet, string fileName)
 {
     dataTable = new DataTable();
+
+    // Extract QuoteDate from fileName using Regex assuming format "YYYY-MM-DD"
+    var dateMatch = Regex.Match(fileName, @"\d{4}-\d{2}-\d{2}");
+    string quoteDate = dateMatch.Success ? dateMatch.Value : "Unknown Date";
+    dataTable.Columns.Add("QuoteDate", typeof(string));
+
     var headerRow = 4; // Headers are in row 4.
     var dataStartRow = 6; // Data starts from row 6.
     var startColumn = 3; // Data starts from column 3, skipping the first 2 columns.
 
-    // Initialize counters for each special header to track their occurrences.
     int apCount = 0, elCount = 0, bidCount = 0, offerCount = 0;
+    List<int> validColumnIndices = new List<int>();
 
-    List<int> validColumnIndices = new List<int>(); // To track valid Excel column indices.
-
-    // Process headers with specific renaming rules based on their occurrences.
     for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
     {
         var headerText = worksheet.Cells[headerRow, col].Text.Trim();
         if (!string.IsNullOrEmpty(headerText))
         {
-            // Apply renaming logic based on the header text and its occurrence count.
             switch (headerText)
             {
                 case "AP":
@@ -141,30 +145,33 @@ private void ProcessAonFile(ExcelWorksheet worksheet)
                     headerText = (++offerCount == 1) ? "OfferSpread" : "OfferPrice";
                     break;
             }
-
-            dataTable.Columns.Add(headerText); // Add the renamed column.
-            validColumnIndices.Add(col); // Add to list of indices with valid (non-blank) headers.
+            dataTable.Columns.Add(headerText);
+            validColumnIndices.Add(col);
         }
     }
 
-    // Process each data row, considering only columns with valid (non-blank) headers.
     for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
     {
-        var dataRow = dataTable.NewRow();
-
-        // Populate the data row based on valid column indices.
-        for (int i = 0; i < validColumnIndices.Count; i++)
+        // Check if the value in Column C is blank. If so, skip this row.
+        if (string.IsNullOrWhiteSpace(worksheet.Cells[row, 3].Text))
         {
-            int excelColIndex = validColumnIndices[i]; // Actual Excel column index.
-            var cellValue = worksheet.Cells[row, excelColIndex].Text.Trim();
-            dataRow[i] = cellValue; // Assign cell value to the correctly renamed column in dataRow.
+            continue;
         }
 
-        dataTable.Rows.Add(dataRow); // Add the populated dataRow to the dataTable.
-    }
+        var dataRow = dataTable.NewRow();
+        dataRow["QuoteDate"] = quoteDate; // Populate QuoteDate for each row.
 
-    // dataTable now correctly populated with headers renamed according to specified rules and data aligned under these headers.
+        for (int i = 0; i < validColumnIndices.Count; i++)
+        {
+            int excelColIndex = validColumnIndices[i];
+            var cellValue = worksheet.Cells[row, excelColIndex].Text.Trim();
+            dataRow[i + 1] = cellValue; // +1 to account for the QuoteDate column at the start.
+        }
+
+        dataTable.Rows.Add(dataRow);
+    }
 }
+
 
 
 
