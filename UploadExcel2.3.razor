@@ -100,23 +100,27 @@
         fileStream.Position = 0;
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         using var package = new ExcelPackage(fileStream);
-        var worksheet = package.Workbook.Worksheets.FirstOrDefault(ws => ws.Name.Equals("RLS", StringComparison.OrdinalIgnoreCase)) ?? package.Workbook.Worksheets[0];
-        
-        if (fileType == "BH")
+    
+        // Ensure the correct worksheet is selected based on fileType
+        var worksheet = package.Workbook.Worksheets[0]; // Default to the first worksheet if specific logic is not required
+    
+        switch (fileType)
         {
-            ProcessBHFile(worksheet, fileName); // Correctly passing 'fileName' to the new method
+            case "BH":
+                ProcessBHFile(worksheet, fileName);
+                break;
+            case "AON":
+                ProcessAonFile(worksheet, fileName);
+                break;
+            case "Swiss":
+                ProcessSwissFile(worksheet);
+                break;
         }
-        if (fileType == "AON")
-        {
-            ProcessAonFile(worksheet, fileName);
-        }
-        else if (fileType == "Swiss")
-        {
-            ProcessSwissFile(worksheet);
-        }
-
+    
         fileStream.Dispose();
+        StateHasChanged(); // Inform Blazor the component state has changed and UI may need to update
     }
+
     private void ProcessBHFile(ExcelWorksheet worksheet, string fileName)
     {
         dataTable = new DataTable();
