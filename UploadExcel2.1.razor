@@ -114,38 +114,58 @@ private void ProcessAonFile(ExcelWorksheet worksheet)
     var dataStartRow = 6; // Data starts from row 6.
     var startColumn = 3; // Data starts from column 3, skipping the first 2 columns.
 
-    // A list to keep track of valid (non-blank) column indices from the Excel sheet.
-    List<int> validColumnIndices = new List<int>();
+    // Initialize counters for each special header to track their occurrences.
+    int apCount = 0, elCount = 0, bidCount = 0, offerCount = 0;
 
-    // Add columns to DataTable based on non-blank headers and track their indices.
+    List<int> validColumnIndices = new List<int>(); // To track valid Excel column indices.
+
+    // Process headers with specific renaming rules based on their occurrences.
     for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
     {
         var headerText = worksheet.Cells[headerRow, col].Text.Trim();
         if (!string.IsNullOrEmpty(headerText))
         {
-            dataTable.Columns.Add(headerText); // Add column for non-blank header.
-            validColumnIndices.Add(col); // Remember this column's index as valid.
+            // Apply renaming logic based on the header text and its occurrence count.
+            switch (headerText)
+            {
+                case "AP":
+                    headerText = (++apCount == 1) ? "LongTermAsk" : "NearTermAsk";
+                    break;
+                case "EL":
+                    headerText = (++elCount == 1) ? "LongTermEL" : "NearTermEL";
+                    break;
+                case "Bid":
+                    headerText = (++bidCount == 1) ? "BidSpread" : "BidPrice";
+                    break;
+                case "Offer":
+                    headerText = (++offerCount == 1) ? "OfferSpread" : "OfferPrice";
+                    break;
+            }
+
+            dataTable.Columns.Add(headerText); // Add the renamed column.
+            validColumnIndices.Add(col); // Add to list of indices with valid (non-blank) headers.
         }
     }
 
-    // Process each row of data, considering only valid (non-blank header) columns.
+    // Process each data row, considering only columns with valid (non-blank) headers.
     for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
     {
         var dataRow = dataTable.NewRow();
 
-        // Iterate through valid column indices to populate dataRow accurately.
+        // Populate the data row based on valid column indices.
         for (int i = 0; i < validColumnIndices.Count; i++)
         {
-            int excelColIndex = validColumnIndices[i]; // Get the actual Excel column index.
+            int excelColIndex = validColumnIndices[i]; // Actual Excel column index.
             var cellValue = worksheet.Cells[row, excelColIndex].Text.Trim();
-            dataRow[i] = cellValue; // Assign cell value to the correct column in dataRow.
+            dataRow[i] = cellValue; // Assign cell value to the correctly renamed column in dataRow.
         }
 
         dataTable.Rows.Add(dataRow); // Add the populated dataRow to the dataTable.
     }
 
-    // Now, dataTable should be accurately populated with data aligned under the correct headers.
+    // dataTable now correctly populated with headers renamed according to specified rules and data aligned under these headers.
 }
+
 
 
 
