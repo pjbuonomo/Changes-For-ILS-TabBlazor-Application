@@ -117,12 +117,36 @@ private void ProcessAonFile(ExcelWorksheet worksheet)
     // Manually add the "QuoteDate" column as the first column in the DataTable.
     dataTable.Columns.Add("QuoteDate", typeof(string));
 
-    // Add columns based on headers present in the Excel sheet from the startColumn index.
+    // Trackers for duplicate column names
+    bool foundAP = false, foundEL = false, foundBid = false, foundOffer = false;
+
+    // Add columns based on headers present in the Excel sheet from the startColumn index,
+    // renaming duplicates according to the rules provided.
     for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
     {
         var headerText = worksheet.Cells[headerRow, col].Text.Trim();
         if (!string.IsNullOrEmpty(headerText))
         {
+            switch (headerText)
+            {
+                case "AP":
+                    headerText = foundAP ? "NearTermAsk" : "LongTermAsk";
+                    foundAP = true;
+                    break;
+                case "EL":
+                    headerText = foundEL ? "NearTermEL" : "LongTermEL";
+                    foundEL = true;
+                    break;
+                case "Bid":
+                    headerText = foundBid ? "BidPrice" : "BidSpread";
+                    foundBid = true;
+                    break;
+                case "Offer":
+                    headerText = foundOffer ? "OfferPrice" : "OfferSpread"; // Assuming a typo in your instructions for the second "Bid"
+                    foundOffer = true;
+                    break;
+            }
+
             dataTable.Columns.Add(headerText);
         }
     }
@@ -136,7 +160,8 @@ private void ProcessAonFile(ExcelWorksheet worksheet)
         // Track if the current row has any non-empty data for valid columns.
         bool hasData = false;
 
-        for (int colIndex = 0, col = startColumn; col <= worksheet.Dimension.End.Column; col++)
+        int colIndex = 0;
+        for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
         {
             if (colIndex + 1 < dataTable.Columns.Count) // Ensure we do not exceed the dataTable column count.
             {
@@ -158,8 +183,10 @@ private void ProcessAonFile(ExcelWorksheet worksheet)
     }
 
     // At this point, dataTable is populated with rows from the Excel sheet,
-    // with each row having a QuoteDate value set and corresponding data from the sheet.
+    // with each row having a QuoteDate value set and corresponding data from the sheet,
+    // and specific duplicate headers renamed according to the provided rules.
 }
+
 
 
 
