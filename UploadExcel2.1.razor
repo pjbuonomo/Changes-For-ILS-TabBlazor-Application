@@ -117,11 +117,14 @@ private void ProcessAonFile(ExcelWorksheet worksheet)
     // Manually add the "QuoteDate" column as the first column in the DataTable.
     dataTable.Columns.Add("QuoteDate", typeof(string));
 
+    // Lists to hold the actual names of the columns as they will be added to the dataTable.
+    List<string> columnNames = new List<string>();
+
     // Trackers for duplicate column names
     bool foundAP = false, foundEL = false, foundBid = false, foundOffer = false;
 
     // Add columns based on headers present in the Excel sheet from the startColumn index,
-    // renaming duplicates according to the rules provided.
+    // renaming duplicates according to the rules provided and storing actual names.
     for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
     {
         var headerText = worksheet.Cells[headerRow, col].Text.Trim();
@@ -142,50 +145,38 @@ private void ProcessAonFile(ExcelWorksheet worksheet)
                     foundBid = true;
                     break;
                 case "Offer":
-                    headerText = foundOffer ? "OfferPrice" : "OfferSpread"; // Assuming a typo in your instructions for the second "Bid"
+                    headerText = foundOffer ? "OfferPrice" : "OfferSpread";
                     foundOffer = true;
                     break;
             }
 
             dataTable.Columns.Add(headerText);
+            columnNames.Add(headerText); // Store the actual column name for data assignment.
         }
     }
 
-    // Process rows starting from dataStartRow.
+    // Process rows starting from dataStartRow, aligning data with renamed headers.
     for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
     {
         var dataRow = dataTable.NewRow();
         dataRow["QuoteDate"] = quoteDate; // Set the QuoteDate for each row.
 
-        // Track if the current row has any non-empty data for valid columns.
-        bool hasData = false;
-
-        int colIndex = 0;
-        for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
+        // Assign cell values to dataRow based on actual column names.
+        for (int col = startColumn, colIndex = 0; col <= worksheet.Dimension.End.Column && colIndex < columnNames.Count; col++, colIndex++)
         {
-            if (colIndex + 1 < dataTable.Columns.Count) // Ensure we do not exceed the dataTable column count.
-            {
-                var cellValue = worksheet.Cells[row, col].Text.Trim();
-                if (!string.IsNullOrEmpty(cellValue))
-                {
-                    hasData = true; // Found data in this row.
-                    dataRow[colIndex + 1] = cellValue; // +1 to account for the QuoteDate column at the beginning.
-                }
-                colIndex++;
-            }
+            var cellValue = worksheet.Cells[row, col].Text.Trim();
+            // Use columnNames for direct mapping to ensure alignment.
+            dataRow[columnNames[colIndex]] = cellValue;
         }
 
-        // Only add the row if it has data to ensure we don't add completely empty rows.
-        if (hasData)
+        // Add the row if it has any data.
+        if (dataRow.ItemArray.Any(item => !string.IsNullOrEmpty(item?.ToString())))
         {
             dataTable.Rows.Add(dataRow);
         }
     }
-
-    // At this point, dataTable is populated with rows from the Excel sheet,
-    // with each row having a QuoteDate value set and corresponding data from the sheet,
-    // and specific duplicate headers renamed according to the provided rules.
 }
+
 
 
 
