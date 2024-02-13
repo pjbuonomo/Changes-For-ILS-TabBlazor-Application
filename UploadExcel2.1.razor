@@ -117,65 +117,64 @@ private void ProcessAonFile(ExcelWorksheet worksheet)
     // Manually add the "QuoteDate" column as the first column in the DataTable.
     dataTable.Columns.Add("QuoteDate", typeof(string));
 
-    // Lists to hold the actual names of the columns as they will be added to the dataTable.
-    List<string> columnNames = new List<string>();
-
-    // Trackers for duplicate column names
-    bool foundAP = false, foundEL = false, foundBid = false, foundOffer = false;
+    // Initialize a dictionary to map original column names to their new names if they need to be renamed.
+    Dictionary<string, string> columnNames = new Dictionary<string, string>();
+    int apCount = 0, elCount = 0, bidCount = 0, offerCount = 0;
 
     // Add columns based on headers present in the Excel sheet from the startColumn index,
-    // renaming duplicates according to the rules provided and storing actual names.
+    // applying the renaming rules for duplicates.
     for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
     {
-        var headerText = worksheet.Cells[headerRow, col].Text.Trim();
-        if (!string.IsNullOrEmpty(headerText))
-        {
-            switch (headerText)
-            {
-                case "AP":
-                    headerText = foundAP ? "NearTermAsk" : "LongTermAsk";
-                    foundAP = true;
-                    break;
-                case "EL":
-                    headerText = foundEL ? "NearTermEL" : "LongTermEL";
-                    foundEL = true;
-                    break;
-                case "Bid":
-                    headerText = foundBid ? "BidPrice" : "BidSpread";
-                    foundBid = true;
-                    break;
-                case "Offer":
-                    headerText = foundOffer ? "OfferPrice" : "OfferSpread";
-                    foundOffer = true;
-                    break;
-            }
+        var originalHeaderText = worksheet.Cells[headerRow, col].Text.Trim();
+        string modifiedHeaderText = originalHeaderText;
 
-            dataTable.Columns.Add(headerText);
-            columnNames.Add(headerText); // Store the actual column name for data assignment.
+        // Apply renaming based on the occurrence count of specific headers.
+        switch (originalHeaderText)
+        {
+            case "AP":
+                modifiedHeaderText = (++apCount == 1) ? "LongTermAsk" : "NearTermAsk";
+                break;
+            case "EL":
+                modifiedHeaderText = (++elCount == 1) ? "LongTermEL" : "NearTermEL";
+                break;
+            case "Bid":
+                modifiedHeaderText = (++bidCount == 1) ? "BidSpread" : "BidPrice";
+                break;
+            case "Offer":
+                modifiedHeaderText = (++offerCount == 1) ? "OfferSpread" : "OfferPrice";
+                break;
         }
+
+        dataTable.Columns.Add(modifiedHeaderText);
+        columnNames[worksheet.Cells[headerRow, col].Address] = modifiedHeaderText; // Map original column address to the new header name.
     }
 
-    // Process rows starting from dataStartRow, aligning data with renamed headers.
+    // Process rows starting from dataStartRow.
     for (int row = dataStartRow; row <= worksheet.Dimension.End.Row; row++)
     {
         var dataRow = dataTable.NewRow();
         dataRow["QuoteDate"] = quoteDate; // Set the QuoteDate for each row.
 
-        // Assign cell values to dataRow based on actual column names.
-        for (int col = startColumn, colIndex = 0; col <= worksheet.Dimension.End.Column && colIndex < columnNames.Count; col++, colIndex++)
+        // Populate the data row based on the original column addresses and the modified header names.
+        for (int col = startColumn; col <= worksheet.Dimension.End.Column; col++)
         {
+            var cellAddress = worksheet.Cells[row, col].Address;
             var cellValue = worksheet.Cells[row, col].Text.Trim();
-            // Use columnNames for direct mapping to ensure alignment.
-            dataRow[columnNames[colIndex]] = cellValue;
+
+            // Only add cell data if the column was intended to be included (i.e., has a mapped modified header name).
+            if (columnNames.ContainsKey(worksheet.Cells[headerRow, col].Address))
+            {
+                string modifiedHeaderName = columnNames[worksheet.Cells[headerRow, col].Address];
+                dataRow[modifiedHeaderName] = cellValue;
+            }
         }
 
-        // Add the row if it has any data.
-        if (dataRow.ItemArray.Any(item => !string.IsNullOrEmpty(item?.ToString())))
-        {
-            dataTable.Rows.Add(dataRow);
-        }
+        dataTable.Rows.Add(dataRow);
     }
+
+    // The dataTable now should have correctly aligned data under the dynamically renamed headers.
 }
+
 
 
 
